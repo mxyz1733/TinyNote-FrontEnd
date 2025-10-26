@@ -5,6 +5,7 @@ const Login = () => import('../views/Login.vue')
 const Register = () => import('../views/Register.vue')
 const Home = () => import('../views/Home.vue')
 const NoteEdit = () => import('../views/NoteEdit.vue')
+const ThreeColumnLayout = () => import('../views/ThreeColumnLayout.vue')
 
 const routes = [
   {
@@ -25,6 +26,14 @@ const routes = [
     path: '/home',
     name: 'Home',
     component: Home,
+    meta: {
+      requiresAuth: true
+    }
+  },
+  {
+    path: '/workspace',
+    name: 'ThreeColumnLayout',
+    component: ThreeColumnLayout,
     meta: {
       requiresAuth: true
     }

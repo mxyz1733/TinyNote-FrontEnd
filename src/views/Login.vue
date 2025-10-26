@@ -140,7 +140,7 @@ export default {
             }
             
             ElMessage.success('登录成功')
-            router.push('/home')
+            router.push('/workspace')
           } else {
             // 显示可用的测试账号信息
             ElMessage.error('用户名或密码错误，测试账号: admin/password123 或 demo/demo123')
