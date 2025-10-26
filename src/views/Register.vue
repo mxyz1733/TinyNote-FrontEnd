@@ -81,6 +81,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { userAPI } from '../api/user.js'
 
 export default {
   name: 'Register',
@@ -135,19 +136,20 @@ export default {
         await registerFormRef.value.validate()
         loading.value = true
         
-        // 模拟注册请求
-        setTimeout(() => {
-          // 这里应该是真实的API调用，现在使用模拟数据
-          console.log('注册信息:', registerForm)
-          
-          // 注册成功后跳转到登录页
-          ElMessage.success('注册成功，请登录')
-          router.push('/login')
-          loading.value = false
-        }, 1500)
+        // 调用真实的注册API
+        const response = await userAPI.register({
+          username: registerForm.username,
+          email: registerForm.email,
+          password: registerForm.password
+        })
+        
+        // 注册成功后跳转到登录页
+        ElMessage.success('注册成功，请登录')
+        router.push('/login')
+        loading.value = false
         
       } catch (error) {
-        console.log('表单验证失败', error)
+        console.error('注册失败', error)
         loading.value = false
       }
     }

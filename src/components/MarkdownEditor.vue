@@ -110,6 +110,7 @@ export default {
     }
 
     // 组件挂载后触发MathJax初始化渲染
+    // 编辑器内容由父组件通过v-model传入，与后端API集成
     onMounted(() => {
       setTimeout(() => {
         if (window.MathJax) {

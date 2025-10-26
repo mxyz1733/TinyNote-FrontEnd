@@ -131,9 +131,10 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { noteAPI } from '../api/note.js'
 import { User, ArrowDown, Plus, Refresh, Setting, SwitchButton, Delete, Search, Clock, DocumentCopy } from '@element-plus/icons-vue'
 import { marked } from 'marked'
 
@@ -161,18 +162,38 @@ export default {
     const previewNote = ref({ title: '', content: '', id: null })
     const renderedContent = ref('')
     
-    // 从localStorage加载笔记数据
-    const loadNotes = () => {
+    // 从API加载笔记列表
+    const loading = ref(false)
+    const loadNotes = async () => {
+      loading.value = true
+      
       try {
-        const savedNotes = localStorage.getItem('notes')
-        if (savedNotes) {
-          notes.value = JSON.parse(savedNotes)
+        // 获取当前登录用户信息
+        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+        const userId = userInfo.id
+        
+        if (!userId) {
+          ElMessage.error('用户信息不存在，请重新登录')
+          router.push('/login')
+          return
+        }
+        
+        // 调用API获取用户的笔记列表
+        const response = await noteAPI.getUserNotesByType(userId, 1) // 根据类型获取笔记
+        
+        if (response.code === 200) {
+          // 处理API返回的数据
+          notes.value = response.data || []
         } else {
+          ElMessage.error(response.message || '获取笔记列表失败')
           notes.value = []
         }
       } catch (error) {
-        console.error('加载笔记失败:', error)
+        console.error('加载笔记列表失败:', error)
+        ElMessage.error('加载失败，请稍后重试')
         notes.value = []
+      } finally {
+        loading.value = false
       }
     }
     
@@ -245,10 +266,25 @@ export default {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
-      }).then(() => {
-        notes.value = notes.value.filter(note => note.id !== id)
-        localStorage.setItem('notes', JSON.stringify(notes.value))
-        ElMessage.success('笔记已删除')
+      }).then(async () => {
+        try {
+          // 获取用户信息
+          const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+          const userId = userInfo.id
+          
+          // 调用API删除笔记
+          const response = await noteAPI.deleteNote(id, userId)
+          
+          if (response.code === 200) {
+            notes.value = notes.value.filter(note => note.id !== id)
+            ElMessage.success('笔记已删除')
+          } else {
+            ElMessage.error(response.message || '删除笔记失败')
+          }
+        } catch (error) {
+          console.error('删除笔记失败:', error)
+          ElMessage.error('删除失败，请稍后重试')
+        }
       }).catch(() => {})
     }
     
@@ -345,6 +381,7 @@ export default {
       dialogVisible,
       previewNote,
       renderedContent,
+      loading,
       createNote,
       editNote,
       viewNote,

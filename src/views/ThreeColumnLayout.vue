@@ -229,6 +229,7 @@ import {
 } from '@element-plus/icons-vue'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 import AIChatWindow from '../components/AIChatWindow.vue'
+import { noteAPI } from '../api/note.js'
 
 export default {
   name: 'ThreeColumnLayout',
@@ -257,17 +258,55 @@ export default {
     const saving = ref(false)
     const sidebarCollapsed = ref(false)
     
-    // 从localStorage加载笔记数据
-    const loadNotes = () => {
+    // 从后端API加载笔记数据
+    const loadNotes = async () => {
       try {
-        const savedNotes = localStorage.getItem('notes')
-        if (savedNotes) {
-          notes.value = JSON.parse(savedNotes)
+        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+        const userId = userInfo.id
+        
+        if (!userId) {
+          ElMessage.warning('请先登录')
+          router.push('/login')
+          return
+        }
+        
+        console.log('开始加载用户笔记，用户ID:', userId)
+        const response = await noteAPI.getUserNotes(userId, 1, 100)
+        
+        console.log('笔记加载响应:', response)
+        
+        // 处理不同格式的响应
+        if (response.code === 200 || response.success === true || response.ok === true) {
+          // 尝试多种可能的数据结构
+          let notesData = []
+          if (response.data?.records && Array.isArray(response.data.records)) {
+            notesData = response.data.records
+          } else if (Array.isArray(response.data)) {
+            notesData = response.data
+          } else if (Array.isArray(response)) {
+            notesData = response
+          }
+          
+          // 将后端数据转换为前端格式
+          notes.value = notesData.map(note => ({
+            id: note.id || note.noteId,
+            title: note.title || '无标题',
+            content: note.content || '',
+            updatedAt: note.updateTime || note.updatedAt || new Date().toISOString(),
+            createdAt: note.createTime || note.createdAt || new Date().toISOString(),
+            userId: note.userId || userId
+          }))
+          
+          console.log('笔记加载成功，共加载:', notes.value.length, '条笔记')
         } else {
+          const errorMsg = response.message || response.msg || '加载笔记失败'
+          console.error('加载笔记失败:', errorMsg)
+          ElMessage.error(errorMsg)
           notes.value = []
         }
       } catch (error) {
-        console.error('加载笔记失败:', error)
+        console.error('加载笔记异常:', error)
+        ElMessage.error('加载失败，请检查网络连接或后端服务')
         notes.value = []
       }
     }
@@ -330,44 +369,198 @@ export default {
       contentChanged.value = false
     }
     
-    // 保存当前笔记
-    const saveCurrentNote = () => {
-      if (!currentNote.value) return
-      
-      if (!currentNote.value.title.trim()) {
+    // 保存笔记
+    const saveCurrentNote = async () => {
+      if (!currentNote.value || !currentNote.value.title.trim()) {
         ElMessage.warning('请输入笔记标题')
         return
       }
-      
+
       saving.value = true
+      contentChanged.value = false
       
-      // 模拟API请求
-      setTimeout(() => {
-        try {
-          // 更新笔记
-          const index = notes.value.findIndex(item => item.id === currentNote.value.id)
-          if (index !== -1) {
-            currentNote.value.updatedAt = new Date().toISOString()
-            notes.value[index] = { ...currentNote.value }
-          } else {
-            // 如果笔记不存在，添加到列表
-            currentNote.value.updatedAt = new Date().toISOString()
-            currentNote.value.createdAt = new Date().toISOString()
-            notes.value.unshift({ ...currentNote.value })
-          }
-          
-          // 保存到localStorage
-          localStorage.setItem('notes', JSON.stringify(notes.value))
-          
-          contentChanged.value = false
-          ElMessage.success('笔记保存成功')
-        } catch (error) {
-          console.error('保存笔记失败:', error)
-          ElMessage.error('保存失败，请重试')
-        } finally {
-          saving.value = false
+      try {
+        // 获取当前登录用户信息
+        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+        const userId = userInfo.id
+        
+        if (!userId) {
+          ElMessage.error('用户信息不存在，请重新登录')
+          router.push('/login')
+          return
         }
-      }, 500)
+        
+        const noteData = {
+          title: currentNote.value.title,
+          content: currentNote.value.content,
+          userId: userId,
+          type: 1, // 默认类型
+          isMarkdown: 0 // 默认不是Markdown
+        }
+        
+        console.log('===== 笔记保存开始 =====')
+        console.log('操作类型:', currentNote.value.id ? '更新笔记' : '创建笔记')
+        console.log('用户ID:', userId)
+        console.log('笔记ID:', currentNote.value.id || '无')
+        console.log('笔记标题:', noteData.title)
+        console.log('笔记内容长度:', noteData.content.length)
+        
+        let response
+        if (currentNote.value.id) {
+          // 更新现有笔记
+          noteData.id = currentNote.value.id
+          console.log('===== 调用updateNote API =====')
+          console.log('完整请求参数:', JSON.stringify(noteData, null, 2))
+          
+          try {
+            // 添加网络请求超时处理
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('API调用超时')), 10000)
+            );
+            
+            response = await Promise.race([
+              noteAPI.updateNote(noteData),
+              timeoutPromise
+            ]);
+            
+            console.log('===== updateNote API响应 =====')
+            console.log('响应状态:', response.code || response.status || '未知')
+            console.log('响应数据类型:', typeof response)
+            console.log('响应数据:', JSON.stringify(response, null, 2))
+          } catch (apiError) {
+            console.error('===== updateNote API调用失败详情 =====')
+            console.error('错误对象类型:', typeof apiError)
+            console.error('错误消息:', apiError.message)
+            console.error('错误堆栈:', apiError.stack)
+            
+            // 提取详细错误信息
+                    if (apiError.response) {
+                        console.error('HTTP状态:', apiError.response.status)
+                        console.error('响应头:', apiError.response.headers)
+                        console.error('响应数据:', JSON.stringify(apiError.response.data, null, 2))
+                        throw new Error(`更新失败: HTTP ${apiError.response.status} - ${apiError.response.data?.message || apiError.response.data?.error || '服务器错误'}`)
+                    } else if (apiError.responseData) {
+                        // 处理从axios拦截器传递的包含完整响应数据的错误
+                        console.error('业务响应数据:', JSON.stringify(apiError.responseData, null, 2))
+                        throw new Error(`更新失败: ${apiError.message}`)
+                    } else if (apiError.request) {
+                        console.error('请求信息:', apiError.request)
+                        throw new Error(`更新失败: 网络请求失败 - ${apiError.message}`)
+                    } else {
+                        throw new Error(`更新失败: ${apiError.message || '未知错误'}`)
+                    }
+          }
+        } else {
+          // 创建新笔记
+          console.log('===== 调用createNote API =====')
+          console.log('完整请求参数:', JSON.stringify(noteData, null, 2))
+          
+          try {
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('API调用超时')), 10000)
+            );
+            
+            response = await Promise.race([
+              noteAPI.createNote(noteData),
+              timeoutPromise
+            ]);
+            
+            console.log('===== createNote API响应 =====')
+            console.log('响应状态:', response.code || response.status || '未知')
+            console.log('响应数据类型:', typeof response)
+            console.log('响应数据:', JSON.stringify(response, null, 2))
+          } catch (apiError) {
+            console.error('===== createNote API调用失败详情 =====')
+            console.error('错误对象类型:', typeof apiError)
+            console.error('错误消息:', apiError.message)
+            console.error('错误堆栈:', apiError.stack)
+            
+            if (apiError.response) {
+              console.error('HTTP状态:', apiError.response.status)
+              console.error('响应头:', apiError.response.headers)
+              console.error('响应数据:', JSON.stringify(apiError.response.data, null, 2))
+              throw new Error(`创建失败: HTTP ${apiError.response.status} - ${apiError.response.data?.message || apiError.response.data?.error || '服务器错误'}`)
+            } else if (apiError.responseData) {
+              // 处理从axios拦截器传递的包含完整响应数据的错误
+              console.error('业务响应数据:', JSON.stringify(apiError.responseData, null, 2))
+              throw new Error(`创建失败: ${apiError.message}`)
+            } else if (apiError.request) {
+              console.error('请求信息:', apiError.request)
+              throw new Error(`创建失败: 网络请求失败 - ${apiError.message}`)
+            } else {
+              throw new Error(`创建失败: ${apiError.message || '未知错误'}`)
+            }
+          }
+        }
+        
+        // 处理不同格式的响应
+        console.log('===== 处理响应 =====')
+        const isSuccess = response.code === 200 || response.success === true || response.ok === true
+        console.log('响应是否成功:', isSuccess)
+        
+        // 检查响应是否是Result格式对象（包含code, message, data三个字段）
+        const isResultFormat = response && typeof response === 'object' && 
+                             'code' in response && 'message' in response && 'data' in response
+        
+        if (isResultFormat) {
+          // Result格式响应处理
+          console.log('===== Result格式响应处理 =====')
+          console.log('响应code:', response.code)
+          console.log('响应message:', response.message)
+          
+          if (response.code === 200) {
+            // 刷新笔记列表
+            console.log('===== 刷新笔记列表 =====')
+            await loadNotes()
+            
+            // 如果是新创建的笔记，更新当前笔记的ID
+            if (!currentNote.value.id && response.data && (response.data.id || response.data.id === 0)) {
+              currentNote.value.id = response.data.id
+              console.log('新笔记ID:', currentNote.value.id)
+            }
+            
+            ElMessage.success(currentNote.value.id ? '笔记更新成功' : '笔记创建成功')
+          } else {
+            const errorMsg = response.message || '保存失败'
+            console.error('保存失败:', errorMsg)
+            ElMessage.error(errorMsg)
+            contentChanged.value = true
+          }
+        } else {
+          // 兼容其他响应格式
+          console.log('===== 兼容模式响应处理 =====')
+          
+          const isSuccess = response.code === 200 || response.success === true || response.ok === true
+          
+          if (isSuccess) {
+            // 刷新笔记列表
+            console.log('===== 刷新笔记列表 =====')
+            await loadNotes()
+            
+            // 如果是新创建的笔记，更新当前笔记的ID
+            if (!currentNote.value.id && (response.data?.id || response.id || response.data?.id === 0)) {
+              currentNote.value.id = response.data?.id || response.id
+              console.log('新笔记ID:', currentNote.value.id)
+            }
+            
+            ElMessage.success(currentNote.value.id ? '笔记更新成功' : '笔记创建成功')
+          } else {
+            const errorMsg = response.message || response.msg || '保存失败'
+            console.error('保存失败:', errorMsg)
+            ElMessage.error(errorMsg)
+            contentChanged.value = true
+          }
+        }
+      } catch (error) {
+        console.error('===== 保存笔记异常（详细）=====')
+        console.error('错误消息:', error.message)
+        console.error('错误堆栈:', error.stack)
+        ElMessage.error(error.message || '保存失败，请稍后重试')
+        contentChanged.value = true
+        saving.value = false
+      } finally {
+        saving.value = false
+      }
     }
     
     // 删除笔记
@@ -376,17 +569,45 @@ export default {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
-      }).then(() => {
-        notes.value = notes.value.filter(note => note.id !== id)
-        localStorage.setItem('notes', JSON.stringify(notes.value))
-        
-        // 如果删除的是当前笔记，清空当前笔记
-        if (currentNote.value && currentNote.value.id === id) {
-          currentNote.value = null
-          contentChanged.value = false
+      }).then(async () => {
+        try {
+          const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+          const userId = userInfo.id
+          
+          if (!userId) {
+            ElMessage.error('用户信息不存在，请重新登录')
+            router.push('/login')
+            return
+          }
+          
+          console.log('准备删除笔记，笔记ID:', id, '用户ID:', userId)
+          
+          // 调用API删除笔记
+          const response = await noteAPI.deleteNote(id, userId)
+          
+          console.log('笔记删除响应:', response)
+          
+          // 处理不同格式的响应
+          if (response.code === 200 || response.success === true || response.ok === true) {
+            // 刷新笔记列表
+            await loadNotes()
+            
+            // 如果删除的是当前笔记，清空当前笔记
+            if (currentNote.value && currentNote.value.id === id) {
+              currentNote.value = null
+              contentChanged.value = false
+            }
+            
+            ElMessage.success('笔记已删除')
+          } else {
+            const errorMsg = response.message || response.msg || '删除笔记失败'
+            console.error('删除笔记失败:', errorMsg)
+            ElMessage.error(errorMsg)
+          }
+        } catch (error) {
+          console.error('删除笔记异常:', error)
+          ElMessage.error('删除失败，请检查网络连接或后端服务')
         }
-        
-        ElMessage.success('笔记已删除')
       }).catch(() => {})
     }
     
@@ -480,7 +701,7 @@ export default {
       }
     }
     
-    onMounted(() => {
+    onMounted(async () => {
       // 获取保存的用户名，如果没有则显示默认值
       const savedUsername = localStorage.getItem('username')
       if (savedUsername) {
@@ -496,7 +717,7 @@ export default {
       }
       
       // 加载笔记数据
-      loadNotes()
+      await loadNotes()
       
       // 默认选中第一篇笔记
       if (notes.value.length > 0) {

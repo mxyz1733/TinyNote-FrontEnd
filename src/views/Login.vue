@@ -74,6 +74,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock, Right } from '@element-plus/icons-vue'
+import { userAPI } from '../api/user.js'
 
 export default {
   name: 'Login',
@@ -113,43 +114,36 @@ export default {
         
         console.log('登录尝试:', { username: loginForm.username, password: '******' })
         
-        // 模拟登录请求
-        setTimeout(() => {
-          // 模拟用户数据库 - 实际应用中应该调用后端API
-          const mockUsers = [
-            { username: 'admin', password: 'password123' },
-            { username: 'demo', password: 'demo123' }
-          ]
+        // 调用真实的后端API
+        const response = await userAPI.login({
+          username: loginForm.username,
+          password: loginForm.password
+        })
+        
+        console.log('登录响应:', response)
+        
+        if (response.code === 200) {
+          // 保存token和用户信息到localStorage
+          localStorage.setItem('token', response.data.token)
+          localStorage.setItem('userInfo', JSON.stringify(response.data.userInfo))
           
-          // 查找匹配的用户并验证密码
-          const matchedUser = mockUsers.find(user => 
-            user.username.toLowerCase() === loginForm.username.toLowerCase() && 
-            user.password === loginForm.password
-          )
-          
-          console.log('用户匹配结果:', matchedUser ? '找到匹配用户' : '未找到匹配用户')
-          
-          if (matchedUser) {
-            // 保存token到localStorage
-            localStorage.setItem('token', 'mock-token-' + Date.now())
-            
-            if (rememberMe.value) {
-              localStorage.setItem('username', loginForm.username)
-            } else {
-              localStorage.removeItem('username')
-            }
-            
-            ElMessage.success('登录成功')
-            router.push('/workspace')
+          if (rememberMe.value) {
+            localStorage.setItem('username', loginForm.username)
           } else {
-            // 显示可用的测试账号信息
-            ElMessage.error('用户名或密码错误，测试账号: admin/password123 或 demo/demo123')
+            localStorage.removeItem('username')
           }
-          loading.value = false
-        }, 500)
+          
+          ElMessage.success('登录成功')
+          // 登录成功后跳转到工作区页面
+          router.push('/workspace')
+        } else {
+          ElMessage.error(response.message || '登录失败')
+        }
+        loading.value = false
         
       } catch (error) {
-        console.log('表单验证失败', error)
+        console.error('登录错误:', error)
+        ElMessage.error('登录失败，请检查网络连接或稍后重试')
         loading.value = false
       }
     }

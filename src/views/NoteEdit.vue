@@ -35,11 +35,12 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Document } from '@element-plus/icons-vue'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
+import { noteAPI } from '../api/note.js'
 
 export default {
   name: 'NoteEdit',
@@ -67,7 +68,7 @@ export default {
     }
 
     // 保存笔记
-    const saveNote = () => {
+    const saveNote = async () => {
       if (!note.title.trim()) {
         ElMessage.warning('请输入笔记标题')
         return
@@ -75,42 +76,51 @@ export default {
       
       saving.value = true
       
-      // 模拟API请求
-      setTimeout(() => {
-        // 从localStorage获取现有笔记数据
-        let notes = JSON.parse(localStorage.getItem('notes') || '[]')
+      try {
+        // 获取当前登录用户信息
+        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+        const userId = userInfo.id
         
-        if (note.id) {
-          // 更新现有笔记
-          const index = notes.findIndex(item => item.id === note.id)
-          if (index !== -1) {
-            notes[index] = {
-              ...notes[index],
-              title: note.title,
-              content: note.content,
-              updatedAt: new Date().toISOString()
-            }
-          }
-        } else {
-          // 创建新笔记
-          const newNote = {
-            id: Date.now().toString(),
-            title: note.title,
-            content: note.content,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-          notes.push(newNote)
-          note.id = newNote.id
+        if (!userId) {
+          ElMessage.error('用户信息不存在，请重新登录')
+          router.push('/login')
+          return
         }
         
-        // 保存回localStorage
-        localStorage.setItem('notes', JSON.stringify(notes))
+        const noteData = {
+          title: note.title,
+          content: note.content,
+          userId: userId,
+          type: 1, // 默认类型
+          isMarkdown: 0 // 默认不是Markdown
+        }
         
-        contentChanged.value = false
-        ElMessage.success(noteId ? '笔记更新成功' : '笔记创建成功')
+        let response
+        if (note.id) {
+          // 更新现有笔记
+          noteData.id = note.id
+          response = await noteAPI.updateNote(noteData)
+        } else {
+          // 创建新笔记
+          response = await noteAPI.createNote(noteData)
+        }
+        
+        if (response.code === 200) {
+          contentChanged.value = false
+          // 如果是新创建的笔记，保存返回的id
+          if (!note.id) {
+            note.id = response.data.id
+          }
+          ElMessage.success(noteId ? '笔记更新成功' : '笔记创建成功')
+        } else {
+          ElMessage.error(response.message || (noteId ? '笔记更新失败' : '笔记创建失败'))
+        }
+      } catch (error) {
+        console.error('保存笔记失败:', error)
+        ElMessage.error('保存失败，请稍后重试')
+      } finally {
         saving.value = false
-      }, 800)
+      }
     }
 
     // 返回上一页
@@ -139,7 +149,7 @@ export default {
     }
 
     // 加载笔记数据
-    onMounted(() => {
+    const loadNoteData = async () => {
       // 检查登录状态
       const token = localStorage.getItem('token')
       if (!token) {
@@ -150,18 +160,39 @@ export default {
       
       // 如果有id参数，则加载现有笔记
       if (noteId) {
-        const notes = JSON.parse(localStorage.getItem('notes') || '[]')
-        const currentNote = notes.find(item => item.id === noteId)
-        
-        if (currentNote) {
-          note.title = currentNote.title
-          note.content = currentNote.content
-          note.id = currentNote.id
-        } else {
-          ElMessage.error('未找到该笔记')
+        try {
+          // 获取当前登录用户信息
+          const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+          const userId = userInfo.id
+          
+          if (!userId) {
+            ElMessage.error('用户信息不存在，请重新登录')
+            router.push('/login')
+            return
+          }
+          
+          // 调用API获取笔记详情
+          const response = await noteAPI.getNoteDetail(noteId, userId)
+          
+          if (response.code === 200 && response.data) {
+            note.title = response.data.title || ''
+            note.content = response.data.content || ''
+            note.id = response.data.id
+          } else {
+            ElMessage.error(response.message || '未找到该笔记或无权限访问')
+            router.push('/home')
+          }
+        } catch (error) {
+          console.error('加载笔记失败:', error)
+          ElMessage.error('加载失败，请稍后重试')
           router.push('/home')
         }
       }
+    }
+    
+    // 组件挂载时加载数据
+    onMounted(() => {
+      loadNoteData()
       
       // 关键修复：数据加载完成后重置contentChanged状态
       // 使用nextTick确保DOM更新完成后再重置
