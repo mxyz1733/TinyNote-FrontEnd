@@ -4,6 +4,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 const Login = () => import('../views/Login.vue')
 const Register = () => import('../views/Register.vue')
 const Home = () => import('../views/Home.vue')
+const NoteEdit = () => import('../views/NoteEdit.vue')
 
 const routes = [
   {
@@ -24,6 +25,14 @@ const routes = [
     path: '/home',
     name: 'Home',
     component: Home,
+    meta: {
+      requiresAuth: true
+    }
+  },
+  {
+    path: '/note/edit/:id?',
+    name: 'NoteEdit',
+    component: NoteEdit,
     meta: {
       requiresAuth: true
     }
