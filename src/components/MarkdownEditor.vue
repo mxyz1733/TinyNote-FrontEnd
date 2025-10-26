@@ -47,42 +47,44 @@ export default {
       noIcon: false
     }
 
-    // 工具栏配置
+    // 工具栏配置 - 简化版，保留常用功能
     const toolbars = {
+      // 基础文本格式化
       bold: true,
       italic: true,
       header: true,
       underline: true,
       strikethrough: true,
-      mark: true,
-      superscript: true,
-      subscript: true,
+      // 高级格式
+      mark: false,
+      subscript: false,
+      // 列表和引用
       quote: true,
       ol: true,
       ul: true,
+      // 链接和图像
       link: true,
       imagelink: true,
+      // 代码和表格
       code: true,
       table: true,
+      // 视图模式
       fullscreen: true,
       readmodel: true,
-      htmlcode: true,
-      help: true,
-      /* 1.3.5 */
+      htmlcode: false,
+      help: false,
+      // 编辑操作
       undo: true,
       redo: true,
       trash: true,
       save: false,
-      /* 1.4.2 */
-      navigation: true,
-      /* 2.1.8 */
-      alignleft: true,
-      aligncenter: true,
-      alignright: true,
-      /* 2.2.1 */
+      // 其他
+      navigation: false,
+      alignleft: false,
+      aligncenter: false,
+      alignright: false,
       subfield: true,
       preview: true,
-      /* 数学公式 */
       mathjax: true
     }
 

@@ -141,11 +141,79 @@
       </el-main>
       
       <!-- 右侧AI对话窗口 -->
-      <el-aside width="350px" class="ai-sidebar">
-        <ai-chat-window 
-          :current-note-content="currentNote?.content || ''" 
-          @ai-response="handleAIResponse"
-        />
+      <el-aside width="350px" class="ai-sidebar" style="display:block !important; background-color: #f8f9fa; border-left: 2px solid #409eff;">
+        <div class="ai-chat-container">
+          <!-- AI助手头部 -->
+          <div style="padding:15px; border-bottom:1px solid #e9ecef; background-color:#fff;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div style="width:32px; height:32px; background-color:#409eff; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px;">
+                  🤖
+                </div>
+                <h3 style="color:#303133; margin:0; font-size:16px;">智能助手</h3>
+              </div>
+              <el-button type="text" size="small" style="color:#909399;">
+                <el-icon><Setting /></el-icon>
+              </el-button>
+            </div>
+          </div>
+          
+          <!-- 对话内容区域 -->
+          <div style="flex:1; padding:20px; overflow-y:auto; height:calc(100% - 130px);">
+            <!-- 欢迎消息 -->
+            <div style="display:flex; margin-bottom:20px;">
+              <div style="width:32px; height:32px; background-color:#409eff; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; margin-right:10px; flex-shrink:0;">
+                🤖
+              </div>
+              <div style="background-color:white; padding:10px 15px; border-radius:18px; max-width:80%; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                <p style="margin:0; color:#303133;">你好！我是TinyNote的智能助手，有什么可以帮助你的吗？</p>
+              </div>
+            </div>
+            
+            <!-- 快捷功能 -->
+            <div style="margin-bottom:20px;">
+              <p style="color:#909399; font-size:13px; margin-bottom:10px;">💡 常用功能</p>
+              <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                <el-button type="info" plain size="small" style="border-radius:16px;">优化笔记内容</el-button>
+                <el-button type="info" plain size="small" style="border-radius:16px;">生成摘要</el-button>
+                <el-button type="info" plain size="small" style="border-radius:16px;">润色文字</el-button>
+                <el-button type="info" plain size="small" style="border-radius:16px;">查找信息</el-button>
+              </div>
+            </div>
+            
+            <!-- 示例问题 -->
+            <div>
+              <p style="color:#909399; font-size:13px; margin-bottom:10px;">❓ 示例问题</p>
+              <div style="background-color:white; border-radius:8px; padding:12px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                <div style="padding:8px; border-radius:4px; cursor:pointer; font-size:14px; color:#606266;" @mouseenter="$event.target.style.backgroundColor='#f5f7fa'" @mouseleave="$event.target.style.backgroundColor='transparent'">
+                  • 帮我总结这篇笔记的要点
+                </div>
+                <div style="padding:8px; border-radius:4px; cursor:pointer; font-size:14px; color:#606266;" @mouseenter="$event.target.style.backgroundColor='#f5f7fa'" @mouseleave="$event.target.style.backgroundColor='transparent'">
+                  • 如何更好地组织这些内容？
+                </div>
+                <div style="padding:8px; border-radius:4px; cursor:pointer; font-size:14px; color:#606266;" @mouseenter="$event.target.style.backgroundColor='#f5f7fa'" @mouseleave="$event.target.style.backgroundColor='transparent'">
+                  • 给这段文字提供一些改进建议
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 输入区域 -->
+          <div style="padding:15px; border-top:1px solid #e9ecef; background-color:#fff;">
+            <el-input
+              type="textarea"
+              :rows="2"
+              placeholder="输入你的问题或需求..."
+              resize="none"
+              style="margin-bottom:10px; border-radius:8px;"
+            />
+            <div style="display:flex; justify-content:flex-end;">
+              <el-button type="primary" size="small" style="border-radius:16px;">
+                <el-icon><CirclePlus /></el-icon> 发送
+              </el-button>
+            </div>
+          </div>
+        </div>
       </el-aside>
     </div>
   </div>
@@ -157,7 +225,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   User, ArrowDown, Plus, Refresh, Setting, SwitchButton, Delete, 
-  Search as SearchIcon, Menu, Document 
+  Search as SearchIcon, Menu, Document, CirclePlus 
 } from '@element-plus/icons-vue'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 import AIChatWindow from '../components/AIChatWindow.vue'
@@ -473,6 +541,24 @@ export default {
   display: flex;
   flex-direction: column;
   background-color: #f5f7fa;
+  overflow: hidden;
+}
+
+/* 确保主容器三栏布局正确 */
+.main-container {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* 确保AI侧边栏始终显示（除非在移动端） */
+@media (min-width: 769px) {
+  .ai-sidebar {
+    display: block !important;
+    width: 350px !important;
+    transform: none !important;
+    position: static !important;
+  }
 }
 
 .main-header {
@@ -703,6 +789,15 @@ export default {
   background-color: #ffffff;
   border-left: 1px solid #e9ecef;
   overflow: hidden;
+  min-width: 350px; /* 确保有最小宽度 */
+}
+
+.ai-chat-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background-color: #f8f9fa;
 }
 
 .sidebar-collapse-trigger {
@@ -739,8 +834,20 @@ export default {
     display: none;
   }
   
+  /* 在移动端可以通过JS控制显示/隐藏AI窗口 */
   .ai-sidebar {
-    display: none;
+    /* 保留位置但默认隐藏，可通过JS控制显示 */
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    position: fixed;
+    right: 0;
+    top: 60px;
+    bottom: 0;
+    z-index: 1000;
+  }
+  
+  .ai-sidebar.show {
+    transform: translateX(0);
   }
   
   .file-sidebar {
