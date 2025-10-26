@@ -22,10 +22,13 @@
           <el-input
             v-model="loginForm.username"
             placeholder="请输入用户名"
-            prefix-icon="User"
             clearable
             class="animated-input"
-          />
+          >
+            <template #prefix>
+              <el-icon><User /></el-icon>
+            </template>
+          </el-input>
         </el-form-item>
         
         <el-form-item prop="password">
@@ -33,11 +36,14 @@
             v-model="loginForm.password"
             type="password"
             placeholder="请输入密码"
-            prefix-icon="Lock"
             show-password
             class="animated-input"
             @keyup.enter="handleLogin"
-          />
+          >
+            <template #prefix>
+              <el-icon><Lock /></el-icon>
+            </template>
+          </el-input>
         </el-form-item>
         
         <el-form-item>
@@ -100,13 +106,30 @@ export default {
     
     const handleLogin = async () => {
       try {
-        await loginFormRef.value.validate()
+        // 表单验证
+        const valid = await loginFormRef.value.validate()
+        console.log('表单验证结果:', valid)
         loading.value = true
+        
+        console.log('登录尝试:', { username: loginForm.username, password: '******' })
         
         // 模拟登录请求
         setTimeout(() => {
-          // 这里应该是真实的API调用，现在使用模拟数据
-          if (loginForm.username && loginForm.password) {
+          // 模拟用户数据库 - 实际应用中应该调用后端API
+          const mockUsers = [
+            { username: 'admin', password: 'password123' },
+            { username: 'demo', password: 'demo123' }
+          ]
+          
+          // 查找匹配的用户并验证密码
+          const matchedUser = mockUsers.find(user => 
+            user.username.toLowerCase() === loginForm.username.toLowerCase() && 
+            user.password === loginForm.password
+          )
+          
+          console.log('用户匹配结果:', matchedUser ? '找到匹配用户' : '未找到匹配用户')
+          
+          if (matchedUser) {
             // 保存token到localStorage
             localStorage.setItem('token', 'mock-token-' + Date.now())
             
@@ -119,10 +142,11 @@ export default {
             ElMessage.success('登录成功')
             router.push('/home')
           } else {
-            ElMessage.error('登录失败，请检查用户名和密码')
+            // 显示可用的测试账号信息
+            ElMessage.error('用户名或密码错误，测试账号: admin/password123 或 demo/demo123')
           }
           loading.value = false
-        }, 1000)
+        }, 500)
         
       } catch (error) {
         console.log('表单验证失败', error)
