@@ -28,27 +28,84 @@
 
 /* 深色模式样式 */
 html.dark {
-  /* 覆盖Element Plus深色模式变量 */
-  --el-bg-color: #1a1a1a;
-  --el-text-color-primary: #f5f7fa;
-  --el-text-color-regular: #c0c4cc;
-  --el-text-color-secondary: #909399;
-  --el-border-color-base: #4e4e4e;
-  --el-border-color-light: #434343;
-  --el-border-color-lighter: #363636;
-  --el-border-color-extra-light: #2c2c2c;
-  --el-fill-color: #2a2a2a;
-  --el-fill-color-light: #252525;
-  --el-fill-color-blank: #1a1a1a;
-  
   color-scheme: dark;
-  color: var(--el-text-color-primary);
-  background-color: var(--el-bg-color);
   
-  /* 为一些第三方组件添加深色模式支持 */
-  --text-color: #f5f7fa;
-  --background-color: #1a1a1a;
-  --border-color: #4e4e4e;
+  /* 覆盖Element Plus变量 */
+  --el-bg-color: #1a1a1a;
+  --el-text-color-primary: #f0f0f0;
+  --el-bg-color-page: #0a0a0a;
+  --el-bg-color-overlay: #1d1e1f;
+  
+  /* 其他深色模式样式 */
+  background-color: var(--el-bg-color-page);
+  color: var(--el-text-color-primary);
+}
+
+/* 护眼绿主题 */
+html.green {
+  --el-bg-color: #f0f9f0;
+  --el-text-color-primary: #2c5a2c;
+  --el-bg-color-page: #e6f4e6;
+  --el-bg-color-overlay: #e0f2e0;
+  
+  background-color: var(--el-bg-color-page);
+  color: var(--el-text-color-primary);
+  
+  /* Element Plus 组件颜色调整 */
+  --el-color-primary: #52c41a;
+  --el-border-color: #b7eb8f;
+  --el-fill-color-light: #f6ffed;
+  --el-color-success: #52c41a;
+}
+
+/* 暗黑蓝主题 */
+html.dark-blue {
+  --el-bg-color: #1a1a2e;
+  --el-text-color-primary: #e0e0ff;
+  --el-bg-color-page: #121225;
+  --el-bg-color-overlay: #1e1e3a;
+  
+  background-color: var(--el-bg-color-page);
+  color: var(--el-text-color-primary);
+  
+  /* Element Plus 组件颜色调整 */
+  --el-color-primary: #4096ff;
+  --el-border-color: #2a2a4a;
+  --el-fill-color-light: #1e1e3a;
+}
+
+/* 护眼黄主题 */
+html.yellow {
+  --el-bg-color: #fffbf0;
+  --el-text-color-primary: #8c6d28;
+  --el-bg-color-page: #fdf8e6;
+  --el-bg-color-overlay: #fbf4d6;
+  
+  background-color: var(--el-bg-color-page);
+  color: var(--el-text-color-primary);
+  
+  /* Element Plus 组件颜色调整 */
+  --el-color-primary: #faad14;
+  --el-border-color: #ffe58f;
+  --el-fill-color-light: #fffbe6;
+}
+
+/* 高对比度主题 */
+html.contrast {
+  --el-bg-color: #000000;
+  --el-text-color-primary: #ffffff;
+  --el-bg-color-page: #000000;
+  --el-bg-color-overlay: #1a1a1a;
+  
+  background-color: var(--el-bg-color-page);
+  color: var(--el-text-color-primary);
+  
+  /* Element Plus 组件颜色调整 */
+  --el-color-primary: #ffff00;
+  --el-border-color: #ffffff;
+  --el-fill-color-light: #333333;
+  --el-text-color-regular: #ffffff;
+  --el-text-color-secondary: #cccccc;
 }
 
 /* 确保Element Plus的主题正常工作 */

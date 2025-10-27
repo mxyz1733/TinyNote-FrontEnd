@@ -16,11 +16,15 @@
           <div class="settings-section">
             <h3>主题设置</h3>
             <div class="theme-options">
-              <el-radio-group v-model="currentTheme" @change="changeTheme">
-                <el-radio-button label="light">浅色</el-radio-button>
-                <el-radio-button label="dark">深色</el-radio-button>
-                <el-radio-button label="auto">跟随系统</el-radio-button>
-              </el-radio-group>
+              <el-select v-model="currentTheme" @change="changeTheme" placeholder="请选择主题" style="width: 240px;">
+                <el-option label="浅色" value="light" />
+                <el-option label="深色" value="dark" />
+                <el-option label="跟随系统" value="auto" />
+                <el-option label="护眼绿" value="green" />
+                <el-option label="暗黑蓝" value="dark-blue" />
+                <el-option label="护眼黄" value="yellow" />
+                <el-option label="高对比度" value="contrast" />
+              </el-select>
               <p class="setting-description">选择应用的显示主题</p>
             </div>
           </div>
@@ -107,11 +111,15 @@ export default {
       // 应用Element Plus主题
       document.documentElement.setAttribute('data-theme', actualTheme)
       
-      // 添加/移除dark类
-      if (actualTheme === 'dark') {
+      // 移除所有主题类
+      document.documentElement.classList.remove('dark', 'green', 'dark-blue', 'yellow', 'contrast')
+      
+      // 添加对应主题类
+      if (['dark', 'dark-blue', 'contrast'].includes(actualTheme)) {
         document.documentElement.classList.add('dark')
-      } else {
-        document.documentElement.classList.remove('dark')
+      }
+      if (actualTheme !== 'light' && actualTheme !== 'auto') {
+        document.documentElement.classList.add(actualTheme)
       }
     }
     
