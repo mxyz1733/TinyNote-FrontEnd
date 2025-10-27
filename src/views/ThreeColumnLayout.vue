@@ -702,9 +702,9 @@ export default {
       router.push('/login')
     }
     
-    // 个人中心
+    // 跳转到设置页面
     const goToProfile = () => {
-      ElMessage.info('个人中心功能开发中...')
+      router.push('/settings')
     }
     
     // 页面离开前提示保存

@@ -6,6 +6,7 @@ const Register = () => import('../views/Register.vue')
 const Home = () => import('../views/Home.vue')
 const NoteEdit = () => import('../views/NoteEdit.vue')
 const ThreeColumnLayout = () => import('../views/ThreeColumnLayout.vue')
+const Settings = () => import('../views/Settings.vue')
 
 const routes = [
   {
@@ -42,6 +43,14 @@ const routes = [
     path: '/note/edit/:id?',
     name: 'NoteEdit',
     component: NoteEdit,
+    meta: {
+      requiresAuth: true
+    }
+  },
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: Settings,
     meta: {
       requiresAuth: true
     }

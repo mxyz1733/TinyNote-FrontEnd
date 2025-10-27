@@ -351,7 +351,7 @@ export default {
     }
     
     const goToProfile = () => {
-      ElMessage.info('个人中心功能开发中...')
+      router.push('/settings')
     }
     
     onMounted(() => {

@@ -3,14 +3,75 @@
   line-height: 1.5;
   font-weight: 400;
 
+  /* 定义颜色变量，支持主题切换 */
+  --el-bg-color: #ffffff;
+  --el-text-color-primary: #303133;
+  --el-text-color-regular: #606266;
+  --el-text-color-secondary: #909399;
+  --el-border-color-base: #dcdfe6;
+  --el-border-color-light: #e4e7ed;
+  --el-border-color-lighter: #ebeef5;
+  --el-border-color-extra-light: #f2f6fc;
+  --el-fill-color: #f5f7fa;
+  --el-fill-color-light: #fafafa;
+  --el-fill-color-blank: #ffffff;
+
   color-scheme: light;
-  color: #303133;
-  background-color: #ffffff;
+  color: var(--el-text-color-primary);
+  background-color: var(--el-bg-color);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* 深色模式样式 */
+html.dark {
+  /* 覆盖Element Plus深色模式变量 */
+  --el-bg-color: #1a1a1a;
+  --el-text-color-primary: #f5f7fa;
+  --el-text-color-regular: #c0c4cc;
+  --el-text-color-secondary: #909399;
+  --el-border-color-base: #4e4e4e;
+  --el-border-color-light: #434343;
+  --el-border-color-lighter: #363636;
+  --el-border-color-extra-light: #2c2c2c;
+  --el-fill-color: #2a2a2a;
+  --el-fill-color-light: #252525;
+  --el-fill-color-blank: #1a1a1a;
+  
+  color-scheme: dark;
+  color: var(--el-text-color-primary);
+  background-color: var(--el-bg-color);
+  
+  /* 为一些第三方组件添加深色模式支持 */
+  --text-color: #f5f7fa;
+  --background-color: #1a1a1a;
+  --border-color: #4e4e4e;
+}
+
+/* 确保Element Plus的主题正常工作 */
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* 为Markdown编辑器添加深色模式支持 */
+html.dark .markdown-editor-wrapper {
+  color: #f5f7fa;
+}
+
+/* 为滚动条添加深色模式样式 */
+html.dark ::-webkit-scrollbar {
+  background-color: #2a2a2a;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background-color: #555;
+}
+
+html.dark ::-webkit-scrollbar-track {
+  background-color: #2a2a2a;
 }
 
 /* 全局链接样式 */
