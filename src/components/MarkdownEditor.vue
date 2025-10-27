@@ -136,9 +136,128 @@ export default {
 .markdown-editor-wrapper {
   width: 100%;
   height: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.9);
+  transition: all 0.3s ease;
 }
 
 .markdown-editor {
   height: 100%;
+  border-radius: 8px;
+}
+
+/* 美化mavon-editor的工具栏 */
+:deep(.v-note-wrapper) {
+  border-radius: 8px;
+  border: 1px solid rgba(220, 223, 230, 0.5);
+  transition: all 0.3s ease;
+}
+
+:deep(.v-note-wrapper:hover) {
+  border-color: rgba(64, 158, 255, 0.3);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* 美化工具栏按钮 */
+:deep(.v-note-toolbar) {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 249, 250, 0.8) 100%);
+  border-bottom: 1px solid rgba(220, 223, 230, 0.5);
+}
+
+:deep(.v-note-toolbar .v-left-item button),
+:deep(.v-note-toolbar .v-right-item button) {
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  margin: 0 2px;
+}
+
+:deep(.v-note-toolbar .v-left-item button:hover),
+:deep(.v-note-toolbar .v-right-item button:hover) {
+  background-color: rgba(64, 158, 255, 0.1);
+  color: #409eff;
+  transform: translateY(-1px);
+}
+
+/* 美化编辑区域 */
+:deep(.v-edit-area) {
+  background-color: rgba(255, 255, 255, 0.95);
+}
+
+:deep(.v-note-edit) {
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 16px;
+  background-color: rgba(255, 255, 255, 0.95);
+}
+
+/* 美化预览区域 */
+:deep(.v-note-preview) {
+  background-color: rgba(255, 255, 255, 0.95);
+  padding: 16px;
+  border-left: 1px solid rgba(220, 223, 230, 0.5);
+}
+
+/* 美化代码块 */
+:deep(.markdown-body pre) {
+  background-color: #f6f8fa !important;
+  border-radius: 8px !important;
+  padding: 16px !important;
+  border: 1px solid rgba(220, 223, 230, 0.5);
+  transition: all 0.3s ease;
+}
+
+:deep(.markdown-body pre:hover) {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* 美化表格 */
+:deep(.markdown-body table) {
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  transition: all 0.3s ease;
+}
+
+:deep(.markdown-body table:hover) {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* 美化公式渲染区域 */
+:deep(.katex-display) {
+  margin: 16px 0;
+  transition: all 0.3s ease;
+}
+
+/* 美化滚动条 */
+:deep(.v-edit-area::-webkit-scrollbar),
+:deep(.v-note-preview::-webkit-scrollbar) {
+  width: 6px;
+  height: 6px;
+}
+
+:deep(.v-edit-area::-webkit-scrollbar-track),
+:deep(.v-note-preview::-webkit-scrollbar-track) {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 3px;
+}
+
+:deep(.v-edit-area::-webkit-scrollbar-thumb),
+:deep(.v-note-preview::-webkit-scrollbar-thumb) {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+  transition: background 0.3s ease;
+}
+
+:deep(.v-edit-area::-webkit-scrollbar-thumb:hover),
+:deep(.v-note-preview::-webkit-scrollbar-thumb:hover) {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  :deep(.v-note-preview) {
+    border-left: none;
+    border-top: 1px solid rgba(220, 223, 230, 0.5);
+  }
 }
 </style>

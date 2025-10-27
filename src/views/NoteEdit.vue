@@ -225,20 +225,56 @@ export default {
 </script>
 
 <style scoped>
+/* 主容器样式 - 添加渐变背景 */
 .note-edit-container {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  position: relative;
+  overflow: hidden;
 }
 
+/* 添加背景数学公式装饰 */
+.note-edit-container::before {
+  content: "E=mc²";
+  position: absolute;
+  top: 20%;
+  left: 10%;
+  font-size: 120px;
+  font-family: 'Times New Roman', serif;
+  color: rgba(64, 158, 255, 0.05);
+  transform: rotate(-15deg);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.note-edit-container::after {
+  content: "∫f(x)dx";
+  position: absolute;
+  bottom: 10%;
+  right: 15%;
+  font-size: 100px;
+  font-family: 'Times New Roman', serif;
+  color: rgba(64, 158, 255, 0.05);
+  transform: rotate(10deg);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 顶部导航栏样式 */
 .edit-header {
-  background-color: #ffffff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 24px;
   height: 60px;
+  border-radius: 0 0 16px 16px;
+  margin-bottom: 12px;
+  z-index: 100;
 }
 
 .header-left,
@@ -261,21 +297,126 @@ export default {
   justify-content: center;
 }
 
+/* 标题输入框样式 */
 .title-input {
   width: 100%;
   max-width: 600px;
+  transition: all 0.3s ease;
 }
 
+.title-input :deep(.el-input__wrapper) {
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.title-input :deep(.el-input__wrapper:hover) {
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+}
+
+.title-input :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #409eff inset, 0 0 0 2px rgba(64, 158, 255, 0.1);
+}
+
+.title-input :deep(input) {
+  font-size: 16px;
+  font-weight: 500;
+  color: #303133;
+}
+
+/* 主内容区域样式 */
 .edit-content {
   flex: 1;
-  padding: 20px;
-  background-color: #f5f7fa;
+  padding: 12px;
   overflow: hidden;
+  position: relative;
+  z-index: 1;
 }
 
+/* 编辑器卡片样式 */
 .editor-card {
   height: 100%;
   display: flex;
   flex-direction: column;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.editor-card:hover {
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* 按钮样式 */
+:deep(.el-button--primary) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  color: white;
+  font-weight: 500;
+}
+
+:deep(.el-button--primary:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+:deep(.el-button--primary:active) {
+  transform: translateY(0);
+}
+
+:deep(.el-button--text) {
+  color: #409eff;
+  border-radius: 50%;
+  padding: 8px;
+  transition: all 0.3s ease;
+}
+
+:deep(.el-button--text:hover) {
+  background-color: rgba(64, 158, 255, 0.1);
+  transform: scale(1.1);
+}
+
+/* 加载动画增强 */
+:deep(.el-icon-loading) {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .edit-header {
+    padding: 0 16px;
+  }
+  
+  .title-input {
+    max-width: 100%;
+  }
+  
+  .edit-content {
+    padding: 8px;
+  }
+}
+
+/* 平滑过渡动画 */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
 }
 </style>

@@ -24,12 +24,12 @@
         </el-button>
         <el-dropdown>
           <el-button type="text" class="user-btn">
-            <el-icon><User /></el-icon>
-            <span>{{ username || '用户' }}</span>
-            <el-icon class="el-icon--right">
-              <ArrowDown />
-            </el-icon>
-          </el-button>
+              <el-icon><User /></el-icon>
+              <span>{{ username || '用户' }}</span>
+              <el-icon class="el-icon--right">
+                <ArrowDown />
+              </el-icon>
+            </el-button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item @click="refreshNotes">
@@ -772,12 +772,31 @@ export default {
 </script>
 
 <style scoped>
+/* 主容器样式 - 添加渐变背景和数学公式装饰 */
 .three-column-container {
+  width: 100%;
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: #f5f7fa;
+  position: relative;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   overflow: hidden;
+}
+
+/* 数学公式装饰背景 */
+.three-column-container::before {
+  content: '';
+  position: absolute;
+  top: -10%;
+  right: -10%;
+  width: 60%;
+  height: 60%;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><text y="25" font-family="Arial" font-size="20">\\sum_{i=1}^n i = \\frac{n(n+1)}{2}</text><text y="55" font-family="Arial" font-size="20">e^{i\\pi} + 1 = 0</text><text y="85" font-family="Arial" font-size="20">\\frac{\\partial^2 u}{\\partial t^2} = c^2 \\nabla^2 u</text></svg>');
+  background-repeat: no-repeat;
+  background-size: contain;
+  opacity: 0.05;
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* 确保主容器三栏布局正确 */
@@ -785,6 +804,10 @@ export default {
   flex: 1;
   display: flex;
   overflow: hidden;
+  padding: 0 12px 12px 12px;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
 }
 
 /* 确保AI侧边栏始终显示（除非在移动端） */
@@ -797,15 +820,21 @@ export default {
   }
 }
 
+/* 顶部导航栏样式 */
 .main-header {
   height: 60px;
-  padding: 0 20px;
-  background-color: #ffffff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 10px 24px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(15px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  z-index: 100;
+  z-index: 300;
+  border-radius: 0 0 16px 16px;
+  margin-bottom: 12px;
+  transition: all 0.3s ease;
+  position: relative;
 }
 
 .header-left {
@@ -820,8 +849,12 @@ export default {
 
 .logo {
   margin: 0;
-  font-size: 24px;
-  color: #409eff;
+  font-size: 22px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .header-center {
@@ -832,6 +865,21 @@ export default {
 
 .search-input {
   width: 100%;
+  transition: all 0.3s ease;
+}
+
+.search-input :deep(.el-input__wrapper) {
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.search-input :deep(.el-input__wrapper:hover) {
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+}
+
+.search-input :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #409eff inset, 0 0 0 2px rgba(64, 158, 255, 0.1);
 }
 
 .header-right {
@@ -844,6 +892,17 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid transparent;
+}
+
+.user-btn:hover {
+  background: rgba(255, 255, 255, 1);
+  border-color: rgba(64, 158, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .main-container {
@@ -853,11 +912,14 @@ export default {
 }
 
 .file-sidebar {
-  background-color: #ffffff;
-  border-right: 1px solid #e9ecef;
-  transition: width 0.3s ease;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .sidebar-content {
@@ -868,7 +930,7 @@ export default {
 
 .sidebar-header {
   padding: 16px;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid rgba(233, 236, 239, 0.5);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -881,25 +943,33 @@ export default {
   color: #303133;
 }
 
+/* 笔记列表样式 */
 .note-list {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
+  padding: 12px;
 }
 
 .note-item {
   padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  margin-bottom: 8px;
+  border: 1px solid transparent;
 }
 
 .note-item:hover {
-  background-color: #f5f7fa;
+  background-color: rgba(245, 247, 250, 0.8);
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .note-item.active {
-  background-color: #ecf5ff;
+  background: linear-gradient(135deg, rgba(64, 158, 255, 0.1) 0%, rgba(64, 158, 255, 0.05) 100%);
   border-left: 3px solid #409eff;
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
 }
 
 .note-item-header {
@@ -935,12 +1005,12 @@ export default {
 }
 
 .empty-notes {
-  padding: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
+  color: #909399;
 }
 
 .editor-main {
@@ -955,40 +1025,58 @@ export default {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: #ffffff;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.editor-container:hover {
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
 }
 
 .editor-header {
-  padding: 16px 24px;
-  border-bottom: 1px solid #e9ecef;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(233, 236, 239, 0.5);
 }
 
 .title-input {
-  font-size: 20px;
-  font-weight: 500;
+  font-size: 22px;
+  font-weight: 600;
 }
 
 .title-input :deep(.el-input__wrapper) {
   box-shadow: none;
+  background: transparent;
+}
+
+.title-input :deep(.el-input__wrapper:hover) {
+  box-shadow: none;
+  background: rgba(245, 247, 250, 0.5);
 }
 
 .title-input :deep(input) {
-  font-size: 20px;
-  font-weight: 500;
+  font-size: 22px;
+  font-weight: 600;
+  color: #303133;
 }
 
 .editor-content {
   flex: 1;
   overflow: hidden;
+  padding: 16px;
 }
 
 .editor-footer {
-  padding: 12px 24px;
-  border-top: 1px solid #e9ecef;
+  padding: 16px 24px;
+  border-top: 1px solid rgba(233, 236, 239, 0.5);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #f8f9fa;
+  background: rgba(248, 249, 250, 0.8);
+  border-radius: 0 0 16px 16px;
 }
 
 .editor-status {
@@ -1001,10 +1089,24 @@ export default {
 
 .unsaved-indicator {
   color: #f56c6c;
-  padding: 2px 6px;
+  padding: 4px 8px;
   background-color: #fef0f0;
-  border-radius: 4px;
+  border-radius: 12px;
   font-size: 12px;
+  font-weight: 500;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 .empty-editor {
@@ -1014,7 +1116,10 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: #ffffff;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .create-note-btn {
@@ -1022,10 +1127,15 @@ export default {
 }
 
 .ai-sidebar {
-  background-color: #ffffff;
-  border-left: 1px solid #e9ecef;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
   overflow: hidden;
-  min-width: 350px; /* 确保有最小宽度 */
+  min-width: 350px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  z-index: 150;
+  position: relative;
 }
 
 .ai-chat-container {
@@ -1033,7 +1143,7 @@ export default {
   display: flex;
   flex-direction: column;
   width: 100%;
-  background-color: #f8f9fa;
+  background: rgba(248, 249, 250, 0.8);
 }
 
 .sidebar-collapse-trigger {
@@ -1044,6 +1154,96 @@ export default {
   cursor: pointer;
   font-size: 20px;
   color: #606266;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  transition: all 0.3s ease;
+}
+
+.sidebar-collapse-trigger:hover {
+  background: rgba(255, 255, 255, 1);
+  color: #409eff;
+  transform: scale(1.05);
+}
+
+/* 修改创建笔记按钮样式 */
+.create-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  color: white;
+  font-weight: 500;
+}
+
+.create-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.create-btn:active {
+  transform: translateY(0);
+}
+
+.create-note-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 20px;
+  padding: 10px 24px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.create-note-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* 修改切换按钮样式 */
+.sidebar-toggle {
+  transition: all 0.3s ease;
+  color: #409eff;
+  border-radius: 50%;
+  padding: 8px;
+}
+
+.sidebar-toggle:hover {
+  transform: scale(1.1);
+  background-color: rgba(64, 158, 255, 0.1);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .main-container {
+    flex-direction: column;
+  }
+  
+  .file-sidebar,
+  .ai-sidebar {
+    width: 100% !important;
+    max-height: 30vh;
+    min-width: unset;
+  }
+  
+  .editor-main {
+    flex: 1;
+  }
+}
+
+/* 平滑过渡动画 */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
+.slide-enter-active, .slide-leave-active {
+  transition: transform 0.3s ease;
+}
+
+.slide-enter-from, .slide-leave-to {
+  transform: translateX(-20px);
 }
 
 .sidebar-collapse-trigger:hover {
