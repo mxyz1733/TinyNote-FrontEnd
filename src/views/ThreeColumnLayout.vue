@@ -334,19 +334,34 @@ export default {
       return result
     })
     
-    // 创建新笔记
-    const createNote = () => {
+    // 创建新笔记 - 立即保存到数据库
+    const createNote = async () => {
+      // 创建基础笔记对象（不设置临时ID）
       const newNote = {
-        id: Date.now().toString(),
         title: '新笔记',
         content: '',
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        createTime: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        updateTime: new Date().toISOString()
       }
       
-      notes.value.unshift(newNote)
+      // 设置为当前笔记
       currentNote.value = { ...newNote }
       contentChanged.value = true
+      
+      // 立即调用保存方法写入数据库
+      try {
+        await saveCurrentNote()
+      } catch (error) {
+        console.error('创建笔记失败:', error)
+        ElMessage.error('创建笔记失败，请重试')
+        // 如果保存失败，添加到本地列表以便用户可以继续编辑
+        if (!currentNote.value.id) {
+          currentNote.value.id = Date.now().toString()
+          notes.value.unshift({ ...currentNote.value })
+        }
+      }
     }
     
     // 选择笔记
