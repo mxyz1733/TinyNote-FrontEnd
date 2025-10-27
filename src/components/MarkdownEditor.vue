@@ -5,7 +5,6 @@
       :toolbars="toolbars"
       :ishljs="true"
       :math="true"
-      :value="content"
       :toolbars-flag="toolbarsFlag"
       @change="handleChange"
       class="markdown-editor"
@@ -92,14 +91,18 @@ export default {
     watch(() => props.modelValue, (newValue) => {
       if (newValue !== content.value) {
         content.value = newValue
+        // 更新内部内容，但不触发change事件，避免标记为未保存
       }
     })
 
     // 处理内容变化
     const handleChange = (value, render) => {
-      content.value = value
-      emit('update:modelValue', value)
-      emit('change', value, render)
+      // 只有当值真正变化时才触发事件
+      if (value !== props.modelValue) {
+        content.value = value
+        emit('update:modelValue', value)
+        emit('change', value, render)
+      }
       
       // 触发MathJax重新渲染数学公式
       setTimeout(() => {
