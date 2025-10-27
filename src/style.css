@@ -3,22 +3,9 @@
   line-height: 1.5;
   font-weight: 400;
 
-  /* 定义颜色变量，支持主题切换 */
-  --el-bg-color: #ffffff;
-  --el-text-color-primary: #303133;
-  --el-text-color-regular: #606266;
-  --el-text-color-secondary: #909399;
-  --el-border-color-base: #dcdfe6;
-  --el-border-color-light: #e4e7ed;
-  --el-border-color-lighter: #ebeef5;
-  --el-border-color-extra-light: #f2f6fc;
-  --el-fill-color: #f5f7fa;
-  --el-fill-color-light: #fafafa;
-  --el-fill-color-blank: #ffffff;
-
   color-scheme: light;
-  color: var(--el-text-color-primary);
-  background-color: var(--el-bg-color);
+  color: #303133;
+  background-color: #ffffff;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -26,160 +13,22 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* 深色模式样式 */
-html.dark {
-  color-scheme: dark;
-  
-  /* 覆盖Element Plus变量 */
-  --el-bg-color: #1a1a1a;
-  --el-text-color-primary: #f0f0f0;
-  --el-bg-color-page: #0a0a0a;
-  --el-bg-color-overlay: #1d1e1f;
-  
-  /* 其他深色模式样式 */
-  background-color: var(--el-bg-color-page);
-  color: var(--el-text-color-primary);
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
-/* 护眼绿主题 */
-html.green {
-  --el-bg-color: #f0f9f0;
-  --el-text-color-primary: #2c5a2c;
-  --el-bg-color-page: #e6f4e6;
-  --el-bg-color-overlay: #e0f2e0;
-  
-  background-color: var(--el-bg-color-page);
-  color: var(--el-text-color-primary);
-  
-  /* Element Plus 组件颜色调整 */
-  --el-color-primary: #52c41a;
-  --el-border-color: #b7eb8f;
-  --el-fill-color-light: #f6ffed;
-  --el-color-success: #52c41a;
-}
-
-/* 暗黑蓝主题 */
-html.dark-blue {
-  --el-bg-color: #1a1a2e;
-  --el-text-color-primary: #e0e0ff;
-  --el-bg-color-page: #121225;
-  --el-bg-color-overlay: #1e1e3a;
-  
-  background-color: var(--el-bg-color-page);
-  color: var(--el-text-color-primary);
-  
-  /* Element Plus 组件颜色调整 */
-  --el-color-primary: #4096ff;
-  --el-border-color: #2a2a4a;
-  --el-fill-color-light: #1e1e3a;
-}
-
-/* 护眼黄主题 */
-html.yellow {
-  --el-bg-color: #fffbf0;
-  --el-text-color-primary: #8c6d28;
-  --el-bg-color-page: #fdf8e6;
-  --el-bg-color-overlay: #fbf4d6;
-  
-  background-color: var(--el-bg-color-page);
-  color: var(--el-text-color-primary);
-  
-  /* Element Plus 组件颜色调整 */
-  --el-color-primary: #faad14;
-  --el-border-color: #ffe58f;
-  --el-fill-color-light: #fffbe6;
-}
-
-/* 高对比度主题 */
-html.contrast {
-  --el-bg-color: #000000;
-  --el-text-color-primary: #ffffff;
-  --el-bg-color-page: #000000;
-  --el-bg-color-overlay: #1a1a1a;
-  
-  background-color: var(--el-bg-color-page);
-  color: var(--el-text-color-primary);
-  
-  /* Element Plus 组件颜色调整 */
-  --el-color-primary: #ffff00;
-  --el-border-color: #ffffff;
-  --el-fill-color-light: #333333;
-  --el-text-color-regular: #ffffff;
-  --el-text-color-secondary: #cccccc;
-}
-
-/* 确保Element Plus的主题正常工作 */
-html[data-theme="dark"] {
-  color-scheme: dark;
-}
-
-/* 为Markdown编辑器添加深色模式支持 */
-html.dark .markdown-editor-wrapper {
-  color: #f5f7fa;
-}
-
-/* 为滚动条添加深色模式样式 */
-html.dark ::-webkit-scrollbar {
-  background-color: #2a2a2a;
-}
-
-html.dark ::-webkit-scrollbar-thumb {
-  background-color: #555;
-}
-
-html.dark ::-webkit-scrollbar-track {
-  background-color: #2a2a2a;
+#app {
+  min-height: 100%;
 }
 
 /* 全局链接样式 */
 a {
+  font-weight: 500;
   color: #409eff;
-  text-decoration: none;
+  text-decoration: inherit;
 }
-
 a:hover {
   color: #66b1ff;
-}
-
-/* 基础元素样式重置 */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html, body {
-  height: 100%;
-  width: 100%;
-}
-
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-/* Element Plus样式会覆盖大部分按钮样式，这里不再定义 */
-
-/* 确保应用占满全屏 */
-#app {
-  width: 100%;
-  height: 100%;
-}
-
-/* 通用工具类 */
-.text-center {
-  text-align: center;
-}
-
-.text-right {
-  text-align: right;
-}
-
-.mt-20 {
-  margin-top: 20px;
-}
-
-.mb-20 {
-  margin-bottom: 20px;
 }
