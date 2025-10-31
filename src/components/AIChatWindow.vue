@@ -142,7 +142,7 @@ export default {
         }
         
         // 清理文本内容，移除可能包含的思考标记和多余信息
-          // 移除</think>标记及其之间的内容
+          // 移除思考标记及其之间的内容
           aiResponse = aiResponse.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
           // 移除可能的AssistantMessage元数据部分
           aiResponse = aiResponse.replace(/AssistantMessage \[[^\]]*\]/g, '').trim()

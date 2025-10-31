@@ -22,23 +22,21 @@
         <el-button type="primary" @click="createNote" class="create-btn">
           <el-icon><Plus /></el-icon> 新建笔记
         </el-button>
-        <el-dropdown>
-          <el-button type="text" class="user-btn">
-              <el-icon><User /></el-icon>
-              <span>{{ username || '用户' }}</span>
-              <el-icon class="el-icon--right">
-                <ArrowDown />
-              </el-icon>
-            </el-button>
+        <el-dropdown trigger="click">
+          <span class="user-btn" style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
+            <el-icon><User /></el-icon>
+            <span>{{ username || '用户' }}</span>
+            <el-icon><ArrowDown /></el-icon>
+          </span>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item @click="refreshNotes">
+              <el-dropdown-item @click.stop="refreshNotes">
                 <el-icon><Refresh /></el-icon> 刷新笔记
               </el-dropdown-item>
-              <el-dropdown-item @click="goToProfile">
+              <el-dropdown-item @click.stop="goToProfile">
                 <el-icon><Setting /></el-icon> 个人中心
               </el-dropdown-item>
-              <el-dropdown-item divided @click="handleLogout">
+              <el-dropdown-item divided @click.stop="handleLogout">
                 <el-icon><SwitchButton /></el-icon> 退出登录
               </el-dropdown-item>
             </el-dropdown-menu>
@@ -638,6 +636,7 @@ export default {
     
     // 跳转到设置页面
     const goToProfile = () => {
+      console.log('跳转到个人中心');
       router.push('/settings')
     }
     
@@ -651,10 +650,18 @@ export default {
     }
     
     onMounted(async () => {
-      // 获取保存的用户名，如果没有则显示默认值
-      const savedUsername = localStorage.getItem('username')
-      if (savedUsername) {
-        username.value = savedUsername
+      // 获取用户信息
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      
+      // 优先从userInfo获取用户名，其次从localStorage的username获取
+      if (userInfo && (userInfo.username || userInfo.name)) {
+        username.value = userInfo.username || userInfo.name
+      } else {
+        // 获取保存的用户名
+        const savedUsername = localStorage.getItem('username')
+        if (savedUsername) {
+          username.value = savedUsername
+        }
       }
       
       // 检查是否已登录
