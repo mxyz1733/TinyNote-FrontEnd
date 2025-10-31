@@ -59,6 +59,7 @@
 import { ref, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Delete, Loading, CirclePlus } from '@element-plus/icons-vue'
+import aiService from '../api/ai'
 
 export default {
   name: 'AIChatWindow',
@@ -97,30 +98,55 @@ export default {
       // 滚动到底部
       await scrollToBottom()
       
-      // 模拟AI响应（实际项目中这里应该调用真实的AI API）
-      setTimeout(() => {
-        // 模拟不同的AI响应内容
-        const responses = [
-          "根据你的需求，我可以帮助你优化这篇笔记的结构。建议添加清晰的标题层级，使用列表组织要点，并适当加入代码示例来增强可读性。",
-          "你的笔记内容很有价值。我建议你增加一些具体的例子或案例研究，这样可以让读者更容易理解你的观点。",
-          "我注意到你的笔记包含一些技术概念，考虑添加一些图表或示意图来帮助解释复杂的想法，这样会使内容更加直观。",
-          "这是一个很好的开始。你可以考虑扩展第二部分的内容，并添加一些相关资源的链接，方便读者进一步学习。",
-          "你写的这段内容逻辑性很强。建议在结尾部分添加一个总结段落，概括主要观点，并提出一些可能的下一步思考方向。"
-        ]
+      try {
+        // 调用真实的AI API
+        // 构建请求参数
+        const requestData = {
+          userId: 1, // 实际项目中应该从登录用户信息中获取
+          prompt: userMessage
+        }
         
-        const randomResponse = responses[Math.floor(Math.random() * responses.length)]
+        // 如果有当前笔记内容，可以在prompt中加入，提供上下文
+        if (props.currentNoteContent) {
+          requestData.prompt = `上下文信息：${props.currentNoteContent}\n\n用户问题：${userMessage}`
+        }
+        
+        const response = await aiService.chatWithAI(requestData)
+        
+        // 根据后端返回格式处理响应
+        let aiResponse = ''
+        if (typeof response === 'string') {
+          // 如果后端直接返回字符串
+          aiResponse = response
+        } else if (response.data) {
+          // 如果是Result格式，获取data字段
+          aiResponse = response.data
+        } else if (response.message || response.msg) {
+          // 如果有message字段，使用它
+          aiResponse = response.message || response.msg
+        }
         
         messages.value.push({
           role: 'assistant',
-          content: randomResponse
+          content: aiResponse
         })
         
+        emit('ai-response', aiResponse)
+      } catch (error) {
+        console.error('AI请求失败:', error)
+        ElMessage.error('AI请求失败，请稍后重试')
+        
+        // 添加错误消息到聊天记录
+        messages.value.push({
+          role: 'assistant',
+          content: '抱歉，我暂时无法响应你的请求。请稍后再试或检查网络连接。'
+        })
+      } finally {
         isTyping.value = false
-        emit('ai-response', randomResponse)
         
         // 滚动到底部
         nextTick(() => scrollToBottom())
-      }, 2000)
+      }
     }
     
     // 清空聊天
@@ -153,9 +179,8 @@ export default {
 .ai-chat-window {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 100vh;
   background-color: #f8f9fa;
-  border-radius: 8px;
   overflow: hidden;
 }
 
@@ -252,12 +277,27 @@ export default {
   border-top: 1px solid #e9ecef;
   padding: 16px;
   background-color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 100px;
+}
+
+.chat-input-container .el-input {
+  flex: 0 0 auto;
+  min-height: 60px;
+}
+
+.chat-input-container .el-input__wrapper {
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .chat-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
   margin-top: 8px;
 }
 

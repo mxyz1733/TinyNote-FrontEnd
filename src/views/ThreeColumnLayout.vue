@@ -142,78 +142,11 @@
       
       <!-- 右侧AI对话窗口 -->
       <el-aside width="350px" class="ai-sidebar" style="display:block !important; background-color: #f8f9fa; border-left: 2px solid #409eff;">
-        <div class="ai-chat-container">
-          <!-- AI助手头部 -->
-          <div style="padding:15px; border-bottom:1px solid #e9ecef; background-color:#fff;">
-            <div style="display:flex; align-items:center; justify-content:space-between;">
-              <div style="display:flex; align-items:center; gap:10px;">
-                <div style="width:32px; height:32px; background-color:#409eff; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px;">
-                  🤖
-                </div>
-                <h3 style="color:#303133; margin:0; font-size:16px;">智能助手</h3>
-              </div>
-              <el-button type="text" size="small" style="color:#909399;">
-                <el-icon><Setting /></el-icon>
-              </el-button>
-            </div>
-          </div>
-          
-          <!-- 对话内容区域 -->
-          <div style="flex:1; padding:20px; overflow-y:auto; height:calc(100% - 130px);">
-            <!-- 欢迎消息 -->
-            <div style="display:flex; margin-bottom:20px;">
-              <div style="width:32px; height:32px; background-color:#409eff; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; margin-right:10px; flex-shrink:0;">
-                🤖
-              </div>
-              <div style="background-color:white; padding:10px 15px; border-radius:18px; max-width:80%; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-                <p style="margin:0; color:#303133;">你好！我是TinyNote的智能助手，有什么可以帮助你的吗？</p>
-              </div>
-            </div>
-            
-            <!-- 快捷功能 -->
-            <div style="margin-bottom:20px;">
-              <p style="color:#909399; font-size:13px; margin-bottom:10px;">💡 常用功能</p>
-              <div style="display:flex; flex-wrap:wrap; gap:8px;">
-                <el-button type="info" plain size="small" style="border-radius:16px;">优化笔记内容</el-button>
-                <el-button type="info" plain size="small" style="border-radius:16px;">生成摘要</el-button>
-                <el-button type="info" plain size="small" style="border-radius:16px;">润色文字</el-button>
-                <el-button type="info" plain size="small" style="border-radius:16px;">查找信息</el-button>
-              </div>
-            </div>
-            
-            <!-- 示例问题 -->
-            <div>
-              <p style="color:#909399; font-size:13px; margin-bottom:10px;">❓ 示例问题</p>
-              <div style="background-color:white; border-radius:8px; padding:12px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-                <div style="padding:8px; border-radius:4px; cursor:pointer; font-size:14px; color:#606266;" @mouseenter="$event.target.style.backgroundColor='#f5f7fa'" @mouseleave="$event.target.style.backgroundColor='transparent'">
-                  • 帮我总结这篇笔记的要点
-                </div>
-                <div style="padding:8px; border-radius:4px; cursor:pointer; font-size:14px; color:#606266;" @mouseenter="$event.target.style.backgroundColor='#f5f7fa'" @mouseleave="$event.target.style.backgroundColor='transparent'">
-                  • 如何更好地组织这些内容？
-                </div>
-                <div style="padding:8px; border-radius:4px; cursor:pointer; font-size:14px; color:#606266;" @mouseenter="$event.target.style.backgroundColor='#f5f7fa'" @mouseleave="$event.target.style.backgroundColor='transparent'">
-                  • 给这段文字提供一些改进建议
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- 输入区域 -->
-          <div style="padding:15px; border-top:1px solid #e9ecef; background-color:#fff;">
-            <el-input
-              type="textarea"
-              :rows="2"
-              placeholder="输入你的问题或需求..."
-              resize="none"
-              style="margin-bottom:10px; border-radius:8px;"
-            />
-            <div style="display:flex; justify-content:flex-end;">
-              <el-button type="primary" size="small" style="border-radius:16px;">
-                <el-icon><CirclePlus /></el-icon> 发送
-              </el-button>
-            </div>
-          </div>
-        </div>
+        <!-- 使用AIChatWindow组件 -->
+        <AIChatWindow 
+          :current-note-content="currentNote?.content || ''" 
+          @ai-response="handleAIResponse"
+        />
       </el-aside>
     </div>
   </div>
@@ -633,8 +566,9 @@ export default {
     
     // 处理AI响应
     const handleAIResponse = (response) => {
-      // 可以在这里处理AI响应，比如提供插入到编辑器的选项
-      ElMessage.info('AI助手已回复，请查看右侧对话窗口')
+      console.log('收到AI响应:', response)
+      // 这里可以根据需要对AI响应进行处理
+      // 例如：显示通知、更新UI状态等
     }
     
     // 刷新笔记
