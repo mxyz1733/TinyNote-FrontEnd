@@ -13,7 +13,7 @@
       <el-card class="user-info-card">
         <div class="user-profile">
           <div class="avatar-upload-wrapper">
-            <el-avatar :size="80" class="user-avatar" :src="avatarUrl">
+            <el-avatar :size="80" class="user-avatar" :src="avatarUrl && avatarUrl.trim() ? avatarUrl : undefined">
               {{ getAvatarText }}
             </el-avatar>
             <div class="avatar-upload-btn">
@@ -214,7 +214,8 @@ export default {
     const passwordFormRef = ref()
     const activeTab = ref('account')
     const noteCount = ref('')
-    const avatarUrl = ref('')
+    // 头像URL状态 - 直接从localStorage初始化，这是最关键的一步
+    const avatarUrl = ref(localStorage.getItem('avatarUrl') || '')
     
     // 更新信息表单
     const updateForm = reactive({
@@ -294,55 +295,68 @@ export default {
       return true
     }
     
-    // 处理头像上传
-    const handleAvatarUpload = async ({ file }) => {
+    // 处理头像上传 - 优化实现，确保即使用户已有头像也能正常更换
+    const handleAvatarUpload = async (param) => {
+      console.log('开始上传头像，参数:', param)
+      
+      // 先清空旧的头像URL，确保能够正确显示新头像
+      avatarUrl.value = ''
+      localStorage.setItem('avatarUrl', '')
+      
+      // Element Plus上传组件的参数结构检查
+      const file = param.file || param
+      console.log('获取到的文件对象:', file)
+      console.log('用户ID:', userId.value)
+      
+      // 使用Promise封装FileReader，确保更好的异步控制
+      const getPreviewUrl = (file) => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = (e) => resolve(e.target.result)
+          reader.onerror = reject
+          reader.readAsDataURL(file)
+        })
+      }
+      
       try {
-        // 创建本地预览URL
-        const reader = new FileReader()
-        reader.onload = async (e) => {
-          // 立即更新本地预览
-          avatarUrl.value = e.target.result
-          
-          // 保存到本地存储作为备份
-          localStorage.setItem('avatarUrl', avatarUrl.value)
-          
-          // 如果用户已登录，则尝试上传到后端
-          if (userId.value) {
-            try {
-              // 尝试调用后端上传头像接口
-              const response = await userAPI.uploadAvatar({
-                userId: userId.value,
-                file: file
-              })
-              
-              if (response.code === 200 && response.data) {
-                // 如果后端返回了头像URL，则使用后端的URL
-                if (response.data.avatarUrl) {
-                  avatarUrl.value = response.data.avatarUrl
-                  localStorage.setItem('avatarUrl', avatarUrl.value)
-                }
-                ElMessage.success('头像上传成功')
-              } else {
-                // 后端上传失败但本地已经设置好了，仍然显示成功消息
-                console.log('后端头像上传失败，但本地头像已设置')
-                ElMessage.success('头像已设置（仅本地）')
-              }
-            } catch (apiError) {
-              console.error('后端头像上传失败:', apiError)
-              ElMessage.warning('头像已设置（仅本地）')
-            }
-          } else {
-            ElMessage.success('头像已设置（仅本地）')
-          }
+        // 获取并设置预览URL
+        const localPreviewUrl = await getPreviewUrl(file)
+        avatarUrl.value = localPreviewUrl
+        localStorage.setItem('avatarUrl', localPreviewUrl)
+        ElMessage.info('头像预览已更新')
+        
+        // 检查userId是否有效
+        if (!userId.value || userId.value === '未知') {
+          ElMessage.error('用户信息无效，无法上传头像')
+          console.error('userId无效:', userId.value)
+          return
         }
-        reader.readAsDataURL(file)
+        
+        // 上传到后端服务器 - 确保包含userId参数和正确的文件对象
+        const uploadParams = {
+          userId: userId.value,
+          file: file // 直接使用文件对象
+        }
+        
+        console.log('准备调用上传API，参数:', uploadParams)
+        const response = await userAPI.uploadAvatar(uploadParams)
+        
+        console.log('上传API返回结果:', response)
+        if (response && response.code === 200) {
+          // 后端上传成功，保存后端返回的URL
+          localStorage.setItem('avatarUrlBackend', response.data)
+          ElMessage.success('头像上传成功')
+        } else {
+          ElMessage.error(`头像上传失败: ${response?.msg || '未知错误'}`)
+        }
       } catch (error) {
-        console.error('头像上传失败:', error)
-        ElMessage.error('头像上传失败')
+        console.error('头像上传错误:', error)
+        ElMessage.error(`头像上传失败: ${error.message || '未知错误'}`)
+        // 即使上传失败，也保持本地预览
       }
     }
     
-    // 从本地存储加载头像
+    // 简化的loadAvatar函数 - 直接从localStorage获取
     const loadAvatar = () => {
       const savedAvatar = localStorage.getItem('avatarUrl')
       if (savedAvatar) {
@@ -391,15 +405,17 @@ export default {
       }
     }
     
-    // 初始化设置
-    onMounted(() => {
-      loadUserInfo()
-      loadNotificationSettings()
-      loadNoteCount()
+    // 页面加载时执行
+    onMounted(async () => {
+      // 先加载本地头像
       loadAvatar()
+      
+      // 然后加载用户信息，但不覆盖已有头像
+      await loadUserInfo()
+      loadNotificationSettings()
     })
     
-    // 加载用户信息
+    // 加载用户信息 - 注意：绝对不修改头像URL
     const loadUserInfo = async () => {
       try {
         const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
@@ -414,15 +430,15 @@ export default {
             nickname.value = userData.nickname || ''
             createTime.value = userData.createTime || ''
             
-            // 如果后端返回了头像URL，则使用后端的URL
-            if (userData.avatarUrl) {
-              avatarUrl.value = userData.avatarUrl
-              localStorage.setItem('avatarUrl', avatarUrl.value)
-            }
-            
             // 填充表单数据
             updateForm.email = email.value
             updateForm.nickname = nickname.value
+            
+            // 重要：只有当本地没有头像URL时，才考虑使用后端的头像URL
+            if (!avatarUrl.value && userData.avatar && userData.avatar.trim()) {
+              avatarUrl.value = userData.avatar
+              localStorage.setItem('avatarUrl', userData.avatar)
+            }
           }
         } else {
           // 从localStorage获取用户名

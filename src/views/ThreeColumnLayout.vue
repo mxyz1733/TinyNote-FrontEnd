@@ -24,7 +24,10 @@
         </el-button>
         <el-dropdown trigger="click">
           <span class="user-btn" style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
-            <el-icon><User /></el-icon>
+            <!-- 显示用户头像 -->
+            <el-avatar :size="32" :src="avatarUrl && avatarUrl.trim() ? avatarUrl : undefined" class="header-avatar">
+              {{ getAvatarText }}
+            </el-avatar>
             <span>{{ username || '用户' }}</span>
             <el-icon><ArrowDown /></el-icon>
           </span>
@@ -181,6 +184,7 @@ export default {
   setup() {
     const router = useRouter()
     const username = ref('')
+    const avatarUrl = ref('')
     const notes = ref([])
     const searchKeyword = ref('')
     const sortType = ref('time')
@@ -188,6 +192,12 @@ export default {
     const contentChanged = ref(false)
     const saving = ref(false)
     const sidebarCollapsed = ref(false)
+    
+    // 获取头像文本（用户名首字母）
+    const getAvatarText = computed(() => {
+      if (!username.value) return '用'
+      return username.value.charAt(0).toUpperCase()
+    })
     
     // 从后端API加载笔记数据
     const loadNotes = async () => {
@@ -650,6 +660,9 @@ export default {
     }
     
     onMounted(async () => {
+      // 立即从localStorage加载头像URL（与Settings.vue保持一致的键名）
+      avatarUrl.value = localStorage.getItem('avatarUrl') || ''
+      
       // 获取用户信息
       const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
       
@@ -662,6 +675,15 @@ export default {
         if (savedUsername) {
           username.value = savedUsername
         }
+      }
+      
+      // 获取用户头像URL
+      const savedAvatar = localStorage.getItem('avatarUrl')
+      if (savedAvatar) {
+        avatarUrl.value = savedAvatar
+      } else if (userInfo && userInfo.avatar) {
+        // 如果本地没有，才使用后端数据
+        avatarUrl.value = userInfo.avatar
       }
       
       // 检查是否已登录
@@ -686,6 +708,8 @@ export default {
     
     return {
       username,
+      avatarUrl,
+      getAvatarText,
       notes,
       filteredNotes,
       searchKeyword,
@@ -776,6 +800,20 @@ export default {
   margin-bottom: 12px;
   transition: all 0.3s ease;
   position: relative;
+}
+
+/* 顶部导航栏头像样式 */
+.header-avatar {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.header-avatar:hover {
+  transform: scale(1.05);
 }
 
 .header-left {

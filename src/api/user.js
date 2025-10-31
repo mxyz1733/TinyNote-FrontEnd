@@ -98,11 +98,10 @@ export const userAPI = {
    */
   uploadAvatar(params) {
     const formData = new FormData()
-    formData.append('userId', params.userId)
     formData.append('file', params.file)
     
     return request({
-      url: '/user/avatar',
+      url: `/user/uploadAvatar/${params.userId}`,
       method: 'post',
       data: formData,
       headers: {

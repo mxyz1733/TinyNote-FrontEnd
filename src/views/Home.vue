@@ -10,7 +10,10 @@
         </el-button>
         <el-dropdown>
           <el-button type="text" class="user-btn">
-            <el-icon><User /></el-icon>
+            <!-- 显示用户头像 -->
+            <el-avatar :size="32" :src="avatarUrl && avatarUrl.trim() ? avatarUrl : undefined" class="header-avatar">
+              {{ getAvatarText }}
+            </el-avatar>
             <span>{{ username || '用户' }}</span>
             <el-icon class="el-icon--right">
               <ArrowDown />
@@ -155,6 +158,7 @@ export default {
   setup() {
     const router = useRouter()
     const username = ref('')
+    const avatarUrl = ref('')
     const notes = ref([])
     const searchKeyword = ref('')
     const sortType = ref('time')
@@ -342,9 +346,18 @@ export default {
       return date.toLocaleDateString()
     }
     
+    // 获取头像文本（用户名首字母）
+    const getAvatarText = computed(() => {
+      if (!username.value) return '用'
+      return username.value.charAt(0).toUpperCase()
+    })
+    
     const handleLogout = () => {
-      // 清除token
+      // 清除token和用户信息
       localStorage.removeItem('token')
+      localStorage.removeItem('userInfo')
+      localStorage.removeItem('username')
+      localStorage.removeItem('avatarUrl')
       ElMessage.success('退出登录成功')
       // 跳转到登录页
       router.push('/login')
@@ -361,6 +374,9 @@ export default {
         username.value = savedUsername
       }
       
+      // 立即从localStorage加载头像URL
+      avatarUrl.value = localStorage.getItem('avatarUrl') || ''
+      
       // 检查是否已登录
       const token = localStorage.getItem('token')
       if (!token) {
@@ -374,6 +390,8 @@ export default {
     
     return {
       username,
+      avatarUrl,
+      getAvatarText,
       notes,
       filteredNotes,
       searchKeyword,
@@ -433,6 +451,20 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* 顶部导航栏头像样式 */
+.header-avatar {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.header-avatar:hover {
+  transform: scale(1.05);
 }
 
 .create-btn {
