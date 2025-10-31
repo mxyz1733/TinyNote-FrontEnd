@@ -120,11 +120,38 @@ export default {
           aiResponse = response
         } else if (response.data) {
           // 如果是Result格式，获取data字段
-          aiResponse = response.data
+          if (typeof response.data === 'string') {
+            aiResponse = response.data
+          } else if (response.data.textContent) {
+            // 处理包含textContent的复杂对象
+            aiResponse = response.data.textContent
+          } else if (response.data.message || response.data.msg) {
+            aiResponse = response.data.message || response.data.msg
+          } else {
+            aiResponse = JSON.stringify(response.data)
+          }
+        } else if (response.textContent) {
+          // 如果响应对象直接包含textContent
+          aiResponse = response.textContent
         } else if (response.message || response.msg) {
           // 如果有message字段，使用它
           aiResponse = response.message || response.msg
+        } else {
+          // 尝试将整个响应转为字符串
+          aiResponse = JSON.stringify(response)
         }
+        
+        // 清理文本内容，移除可能包含的思考标记和多余信息
+          // 移除</think>标记及其之间的内容
+          aiResponse = aiResponse.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
+          // 移除可能的AssistantMessage元数据部分
+          aiResponse = aiResponse.replace(/AssistantMessage \[[^\]]*\]/g, '').trim()
+          // 移除metadata信息
+          aiResponse = aiResponse.replace(/metadata=\{[^\}]*\}/g, '').trim()
+          // 移除textContent标签
+          aiResponse = aiResponse.replace(/,\s*textContent=\s*/g, '').trim()
+          // 移除末尾的逗号和括号
+          aiResponse = aiResponse.replace(/,\s*\]$/g, '').trim()
         
         messages.value.push({
           role: 'assistant',
@@ -169,7 +196,8 @@ export default {
       isTyping,
       chatContainer,
       sendMessage,
-      clearChat
+      clearChat,
+      scrollToBottom
     }
   }
 }
