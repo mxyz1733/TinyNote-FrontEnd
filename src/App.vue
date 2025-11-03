@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container">
+  <div class="app-container glass-effect">
     <!-- 路由出口 -->
     <router-view />
   </div>
@@ -16,6 +16,7 @@
 html, body {
   height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  overflow-x: hidden;
 }
 
 #app {
@@ -23,6 +24,8 @@ html, body {
 }
 
 .app-container {
-  height: 100%;
+  min-height: 100vh;
+  padding: 20px;
+  transition: all 0.3s ease;
 }
 </style>

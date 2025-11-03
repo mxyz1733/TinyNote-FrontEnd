@@ -1,6 +1,6 @@
 <template>
   <div class="home-container">
-    <el-header class="main-header">
+    <el-header class="main-header glass-effect">
       <div class="header-left">
         <h1 class="logo">TinyNote</h1>
       </div>
@@ -67,7 +67,7 @@
       <div class="notes-container" v-if="filteredNotes.length > 0">
         <el-row :gutter="20">
           <el-col :xs="24" :sm="12" :md="8" :lg="6" v-for="note in filteredNotes" :key="note.id">
-            <el-card class="note-card" shadow="hover" @click="editNote(note.id)">
+            <el-card class="note-card glass-effect" shadow="hover" @click="editNote(note.id)">
               <template #header class="note-header">
                 <div class="note-title">{{ note.title }}</div>
                 <el-button type="text" @click.stop="deleteNote(note.id)">
@@ -420,6 +420,35 @@ export default {
 </script>
 
 <style scoped>
+/* 头部样式调整，确保毛玻璃效果正常 */
+.main-header {
+  position: relative;
+  z-index: 10;
+  border: none !important;
+}
+
+/* 笔记卡片样式调整 */
+.note-card {
+  position: relative;
+  z-index: 5;
+  margin-bottom: 20px;
+  overflow: hidden;
+  border: none !important;
+  border-radius: 12px !important;
+}
+
+/* 全局动画定义 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .home-container {
   min-height: 100vh;
   display: flex;

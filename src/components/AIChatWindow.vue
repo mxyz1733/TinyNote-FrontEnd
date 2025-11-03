@@ -142,16 +142,52 @@ export default {
         }
         
         // 清理文本内容，移除可能包含的思考标记和多余信息
-          // 移除思考标记及其之间的内容
-          aiResponse = aiResponse.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
-          // 移除可能的AssistantMessage元数据部分
-          aiResponse = aiResponse.replace(/AssistantMessage \[[^\]]*\]/g, '').trim()
-          // 移除metadata信息
-          aiResponse = aiResponse.replace(/metadata=\{[^\}]*\}/g, '').trim()
-          // 移除textContent标签
-          aiResponse = aiResponse.replace(/,\s*textContent=\s*/g, '').trim()
-          // 移除末尾的逗号和括号
-          aiResponse = aiResponse.replace(/,\s*\]$/g, '').trim()
+        // 改进后的清理逻辑，更全面地处理不同格式的AI响应
+        // 移除思考标记及其之间的内容
+        aiResponse = aiResponse.replace(/(?:^|[\s])[<\[][\s]*think[\s]*[>\]]/gi, '').trim()
+        aiResponse = aiResponse.replace(/(?:^|[\s])[<\[][\s]*\/think[\s]*[>\]]/gi, '').trim()
+        // 使用字符串替换而不是正则表达式处理特殊字符
+        if (aiResponse.includes('</think>')) {
+          const start = aiResponse.indexOf('</think>')
+          const end = aiResponse.indexOf('</think>', start + 3)
+          if (start !== -1 && end !== -1) {
+            aiResponse = aiResponse.substring(0, start) + aiResponse.substring(end + 3)
+          }
+        }
+        aiResponse = aiResponse.trim()
+        
+        // 移除可能的AssistantMessage元数据部分
+        const assistantMsgRegex = /AssistantMessage\s*\[.*?\]/gi;
+        aiResponse = aiResponse.replace(assistantMsgRegex, '').trim();
+        
+        // 移除metadata信息
+        const metadataRegex = /metadata\s*=\s*\{[^}]*\}/gi;
+        aiResponse = aiResponse.replace(metadataRegex, '').trim();
+        
+        // 移除textContent标签
+        const textContentRegex = /,\s*textContent\s*=\s*/gi;
+        aiResponse = aiResponse.replace(textContentRegex, '').trim();
+        
+        // 移除末尾的逗号和括号
+        const endCommaRegex = /,\s*\]$/gi;
+        aiResponse = aiResponse.replace(endCommaRegex, '').trim();
+        
+        // 移除其他可能的格式标记
+        const assistantTagRegex = /<\/?assistant>/gi;
+        aiResponse = aiResponse.replace(assistantTagRegex, '').trim();
+        
+        const systemTagRegex = /<\/?system>/gi;
+        aiResponse = aiResponse.replace(systemTagRegex, '').trim();
+        
+        const userTagRegex = /<\/?user>/gi;
+        aiResponse = aiResponse.replace(userTagRegex, '').trim();
+        
+        // 清理多余的空白字符和换行
+        aiResponse = aiResponse.split('\n').map(line => line.trim()).filter(line => line !== '').join('\n\n').trim();
+        
+        // 确保中文显示正常，移除可能的控制字符
+        const controlCharRegex = /[\u0000-\u001F\u007F-\u009F]/g;
+        aiResponse = aiResponse.replace(controlCharRegex, '')
         
         messages.value.push({
           role: 'assistant',

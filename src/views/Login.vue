@@ -16,7 +16,7 @@
     </div>
 
     <!-- 主登录卡片 -->
-    <el-card class="login-card" shadow="hover" bordered="false" @mouseenter="cardHovered = true" @mouseleave="cardHovered = false">
+    <el-card class="login-card glass-effect" shadow="hover" bordered="false" @mouseenter="cardHovered = true" @mouseleave="cardHovered = false">
       <template #header>
         <div class="login-header">
           <div class="logo-container">
@@ -208,10 +208,16 @@ export default {
           localStorage.setItem('token', response.data.token)
           localStorage.setItem('userInfo', JSON.stringify(response.data.userInfo))
           
+          // 保存用户名
           if (rememberMe.value) {
             localStorage.setItem('username', loginForm.username)
           } else {
             localStorage.removeItem('username')
+          }
+          
+          // 保存头像URL到localStorage
+          if (response.data.userInfo && response.data.userInfo.avatar) {
+            localStorage.setItem('avatarUrl', response.data.userInfo.avatar)
           }
           
           // 登录成功动画效果
@@ -375,8 +381,6 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  background-size: 200% 200%;
   padding: 20px;
   transition: all 1.2s cubic-bezier(0.19, 1, 0.22, 1);
   opacity: 0;
@@ -386,7 +390,6 @@ export default {
 
 .login-container.page-loaded {
   opacity: 1;
-  animation: gradientBackground 15s ease infinite;
 }
 
 @keyframes gradientBackground {

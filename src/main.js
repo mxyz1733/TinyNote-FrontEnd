@@ -1,5 +1,7 @@
 import { createApp } from 'vue'
 import './style.css'
+// 导入Element Plus主题变量（必须在Element Plus样式之前导入）
+import './theme/element-variables.css'
 import App from './App.vue'
 
 // 引入Element Plus

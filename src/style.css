@@ -11,6 +11,15 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  
+  /* Element Plus 主题色覆盖 - 紫色系 */
+  --el-color-primary: #667eea;
+  --el-color-primary-light-3: #7c8ceb;
+  --el-color-primary-light-5: #919ff0;
+  --el-color-primary-light-7: #a6b6f5;
+  --el-color-primary-light-8: #bcc2f7;
+  --el-color-primary-light-9: #d1d7fa;
+  --el-color-primary-dark-2: #576fd5;
 }
 
 html, body {
@@ -26,9 +35,105 @@ html, body {
 /* 全局链接样式 */
 a {
   font-weight: 500;
-  color: #409eff;
+  color: #667eea;
   text-decoration: inherit;
 }
 a:hover {
-  color: #66b1ff;
+  color: #7c8ceb;
+}
+
+/* 简化的Element Plus主题色覆盖 */
+:root {
+  --el-color-primary: #667eea !important;
+}
+
+/* 主要按钮样式 */
+.el-button--primary {
+  background-color: #667eea !important;
+  border-color: #667eea !important;
+}
+.el-button--primary:hover {
+  background-color: #7c8ceb !important;
+  border-color: #7c8ceb !important;
+}
+
+/* 输入框焦点样式 */
+.el-input__inner:focus {
+  border-color: #667eea !important;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2) !important;
+}
+
+/* 链接和活动状态 */
+.el-menu-item.is-active,
+.el-sub-menu__title:hover {
+  color: #667eea !important;
+}
+
+/* 标签页样式 */
+.el-tabs__item.is-active {
+  color: #667eea !important;
+}
+.el-tabs__active-bar {
+  background-color: #667eea !important;
+}
+
+/* 毛玻璃效果样式 - 提高透明度确保效果明显 */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+/* 深色毛玻璃效果 */
+.glass-effect-dark {
+  background: rgba(30, 30, 30, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* 毛玻璃按钮效果 */
+.glass-button {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  transition: all 0.2s ease;
+}
+
+.glass-button:hover {
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
+}
+
+/* 确保body和app有足够的高度，以便毛玻璃效果正常显示 */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-size: 200% 200%;
+  animation: gradientBackground 15s ease infinite;
+}
+
+@keyframes gradientBackground {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }

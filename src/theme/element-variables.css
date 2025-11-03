@@ -1,0 +1,23 @@
+/* Element Plus 主题变量覆盖 */
+:root {
+  /* 主色 */
+  --el-color-primary: #667eea;
+  --el-color-primary-light-3: #7c8ceb;
+  --el-color-primary-light-5: #919ff0;
+  --el-color-primary-light-7: #a6b6f5;
+  --el-color-primary-light-8: #bcc2f7;
+  --el-color-primary-light-9: #d1d7fa;
+  --el-color-primary-dark-2: #576fd5;
+  
+  /* 状态色 */
+  --el-color-success: #67c23a;
+  --el-color-warning: #e6a23c;
+  --el-color-danger: #f56c6c;
+  --el-color-info: #909399;
+  
+  /* 中性色 */
+  --el-text-color-primary: #303133;
+  --el-text-color-regular: #606266;
+  --el-text-color-secondary: #909399;
+  --el-text-color-placeholder: #c0c4cc;
+}

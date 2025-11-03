@@ -185,6 +185,7 @@ import {
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { userAPI } from '../api/user.js'
+import request from '../api/axios.js'
 
 export default {
   name: 'Settings',
@@ -295,20 +296,29 @@ export default {
       return true
     }
     
-    // 处理头像上传 - 优化实现，确保即使用户已有头像也能正常更换
-    const handleAvatarUpload = async (param) => {
-      console.log('开始上传头像，参数:', param)
+    // 处理头像上传 - 最终修复版本
+    const handleAvatarUpload = async (uploadConfig) => {
+      console.log('===== 开始上传头像 =====', uploadConfig)
       
-      // 先清空旧的头像URL，确保能够正确显示新头像
+      // 先清空旧的头像URL
       avatarUrl.value = ''
       localStorage.setItem('avatarUrl', '')
       
-      // Element Plus上传组件的参数结构检查
-      const file = param.file || param
+      // Element Plus上传组件的参数结构处理
+      const file = uploadConfig.file // Element Plus上传组件会直接传递file对象在config.file中
       console.log('获取到的文件对象:', file)
+      console.log('文件类型:', file.type)
+      console.log('文件大小:', file.size)
       console.log('用户ID:', userId.value)
       
-      // 使用Promise封装FileReader，确保更好的异步控制
+      if (!file) {
+        const errorMsg = '文件对象为空，无法上传'
+        console.error(errorMsg)
+        ElMessage.error(errorMsg)
+        return
+      }
+      
+      // 使用Promise封装FileReader
       const getPreviewUrl = (file) => {
         return new Promise((resolve, reject) => {
           const reader = new FileReader()
@@ -332,27 +342,40 @@ export default {
           return
         }
         
-        // 上传到后端服务器 - 确保包含userId参数和正确的文件对象
-        const uploadParams = {
-          userId: userId.value,
-          file: file // 直接使用文件对象
-        }
+        // 直接创建FormData对象进行上传
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('userId', userId.value)
         
-        console.log('准备调用上传API，参数:', uploadParams)
-        const response = await userAPI.uploadAvatar(uploadParams)
+        console.log('准备发送FormData:', formData.get('userId'), formData.get('file').name)
+        
+        // 直接使用axios发送请求，绕过可能有问题的API封装
+        const response = await request({
+          url: `/user/uploadAvatar/${userId.value}`,
+          method: 'post',
+          data: formData,
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          },
+          timeout: 30000 // 增加超时时间
+        })
         
         console.log('上传API返回结果:', response)
         if (response && response.code === 200) {
-          // 后端上传成功，保存后端返回的URL
           localStorage.setItem('avatarUrlBackend', response.data)
           ElMessage.success('头像上传成功')
         } else {
-          ElMessage.error(`头像上传失败: ${response?.msg || '未知错误'}`)
+          ElMessage.error(`头像上传失败: ${response?.msg || response?.message || '未知错误'}`)
         }
       } catch (error) {
-        console.error('头像上传错误:', error)
+        console.error('===== 头像上传错误详情 =====')
+        console.error('错误类型:', error.name)
+        console.error('错误消息:', error.message)
+        if (error.response) {
+          console.error('HTTP状态:', error.response.status)
+          console.error('响应数据:', error.response.data)
+        }
         ElMessage.error(`头像上传失败: ${error.message || '未知错误'}`)
-        // 即使上传失败，也保持本地预览
       }
     }
     
@@ -412,6 +435,8 @@ export default {
       
       // 然后加载用户信息，但不覆盖已有头像
       await loadUserInfo()
+      // 加载笔记数量
+      loadNoteCount()
       loadNotificationSettings()
     })
     
@@ -553,33 +578,56 @@ export default {
     // 加载笔记数量
     const loadNoteCount = async () => {
       try {
-        console.log('开始加载笔记数量，用户ID:', userId.value)
-        
-        // 先从本地存储获取笔记数量作为后备
-        const mainNotes = JSON.parse(localStorage.getItem('notes') || '[]')
-        const localNoteCount = mainNotes.length
-        console.log('本地存储中的笔记数量:', localNoteCount)
-        
-        // 先显示本地存储的数量
-        noteCount.value = localNoteCount
+        // 重置为0
+        noteCount.value = 0
         
         // 如果用户已登录，使用正确的API端点获取真实的笔记数量
         if (userId.value && userId.value !== '未知') {
           try {
-            // 使用正确的API端点：/api/note/count，参数为userId
+            // 使用正确的API端点获取笔记数量
             const response = await userAPI.getNoteCount(userId.value)
             if (response.code === 200) {
-              // 假设响应直接返回数量值或包含count字段
-              noteCount.value = response.data || 0
+              // 从后端API响应中提取数量
+              if (typeof response.data === 'number') {
+                // 如果是直接的数字
+                noteCount.value = response.data
+              } else if (response.data && typeof response.data === 'object') {
+                // 如果是包含count字段的对象
+                noteCount.value = response.data.count || 0
+              } else if (typeof response.data === 'string') {
+                // 如果是字符串消息，尝试解析数字
+                const countMatch = response.data.match(/\d+/)
+                if (countMatch) {
+                  noteCount.value = parseInt(countMatch[0])
+                }
+              }
               console.log('从后端API获取的笔记数量:', noteCount.value)
-            } else {
-              console.log('API返回非成功响应，继续使用本地存储的数量')
             }
           } catch (apiError) {
-            console.log('API调用失败，继续使用本地存储的数量:', apiError.message)
+            console.error('API调用失败:', apiError.message)
+            // 失败时尝试从笔记列表API获取数量
+            try {
+              const notesResponse = await noteAPI.getUserNotes(userId.value)
+              if (notesResponse.code === 200 && notesResponse.data) {
+                if (notesResponse.data.records && Array.isArray(notesResponse.data.records)) {
+                  noteCount.value = notesResponse.data.records.length
+                } else if (Array.isArray(notesResponse.data)) {
+                  noteCount.value = notesResponse.data.length
+                }
+              }
+            } catch (notesError) {
+              console.error('获取笔记列表失败:', notesError.message)
+            }
           }
         } else {
-          console.log('用户未登录或ID未知，只使用本地存储的数量')
+          // 用户未登录时尝试从本地存储获取
+          try {
+            const mainNotes = JSON.parse(localStorage.getItem('notes') || '[]')
+            noteCount.value = mainNotes.length
+            console.log('用户未登录，使用本地存储的笔记数量:', noteCount.value)
+          } catch (error) {
+            console.error('从本地存储获取笔记数量失败:', error)
+          }
         }
       } catch (error) {
         console.error('加载笔记数量发生未预期错误:', error)
