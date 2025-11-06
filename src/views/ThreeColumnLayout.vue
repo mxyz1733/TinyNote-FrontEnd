@@ -22,6 +22,10 @@
         <el-button type="primary" @click="createNote" class="create-btn">
           <el-icon><Plus /></el-icon> 新建笔记
         </el-button>
+        <el-button type="default" @click="triggerImportMd" class="create-btn">
+          <el-icon><CirclePlus /></el-icon> 导入Markdown
+        </el-button>
+        <input ref="mdInputRef" type="file" accept=".md,text/markdown" style="display:none" @change="handleImportMd" />
         <el-dropdown trigger="click">
           <span class="user-btn" style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
             <!-- 显示用户头像 -->
@@ -201,6 +205,7 @@ export default {
     const contentChanged = ref(false)
     const saving = ref(false)
     const sidebarCollapsed = ref(false)
+    const mdInputRef = ref(null)
     
     // 返回页面时或窗口聚焦时，同步最新头像
     const refreshAvatarFromLocal = () => {
@@ -266,6 +271,50 @@ export default {
         console.error('加载笔记异常:', error)
         ElMessage.error('加载失败，请检查网络连接或后端服务')
         notes.value = []
+      }
+    }
+
+    // 触发选择Markdown文件
+    const triggerImportMd = () => {
+      mdInputRef.value && mdInputRef.value.click()
+    }
+
+    // 处理Markdown文件导入
+    const handleImportMd = async (e) => {
+      try {
+        const files = Array.from(e.target.files || [])
+        if (!files.length) return
+        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+        const userId = userInfo.id
+        if (!userId) {
+          ElMessage.error('用户信息不存在，请重新登录')
+          router.push('/login')
+          return
+        }
+        let ok = 0
+        for (const file of files) {
+          if (!/\.md$/i.test(file.name) && file.type !== 'text/markdown') {
+            continue
+          }
+          const text = await file.text()
+          const title = (file.name.replace(/\.[^/.]+$/, '') || '导入的笔记').slice(0, 100)
+          const noteData = { title, content: text, userId, type: 1, isMarkdown: 1 }
+          const res = await noteAPI.createNote(noteData)
+          if (res && res.code === 200) ok++
+        }
+        if (mdInputRef.value) mdInputRef.value.value = ''
+        if (ok > 0) {
+          ElMessage.success(`成功导入 ${ok} 个Markdown文件`)
+          await loadNotes()
+          if (notes.value.length > 0) {
+            currentNote.value = { ...notes.value[0] }
+          }
+        } else {
+          ElMessage.error('未导入任何Markdown文件')
+        }
+      } catch (err) {
+        console.error('导入Markdown失败:', err)
+        ElMessage.error('导入失败')
       }
     }
     
@@ -809,6 +858,9 @@ export default {
       contentChanged,
       saving,
       sidebarCollapsed,
+      mdInputRef,
+      triggerImportMd,
+      handleImportMd,
       createNote,
       selectNote,
       saveCurrentNote,
