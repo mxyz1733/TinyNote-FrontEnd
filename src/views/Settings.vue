@@ -217,6 +217,13 @@ export default {
     const noteCount = ref('')
     // 头像URL状态 - 直接从localStorage初始化，这是最关键的一步
     const avatarUrl = ref(localStorage.getItem('avatarUrl') || '')
+    // 将后端可能返回的相对路径统一转换为带域名的绝对URL
+    const apiOrigin = new URL(request.defaults.baseURL).origin
+    const toAbsoluteUrl = (url) => {
+      if (!url) return ''
+      if (/^https?:\/\//i.test(url)) return url
+      return `${apiOrigin}${url.startsWith('/') ? url : '/' + url}`
+    }
     
     // 更新信息表单
     const updateForm = reactive({
@@ -362,7 +369,11 @@ export default {
         
         console.log('上传API返回结果:', response)
         if (response && response.code === 200) {
-          localStorage.setItem('avatarUrlBackend', response.data)
+          const absolute = toAbsoluteUrl(response.data)
+          // 以服务端地址为准，覆盖预览地址，确保返回后其它页面能正确加载
+          avatarUrl.value = absolute
+          localStorage.setItem('avatarUrl', absolute)
+          localStorage.setItem('avatarUrlBackend', absolute)
           ElMessage.success('头像上传成功')
         } else {
           ElMessage.error(`头像上传失败: ${response?.msg || response?.message || '未知错误'}`)
@@ -467,8 +478,9 @@ export default {
             
             // 重要：只有当本地没有头像URL时，才考虑使用后端的头像URL
             if (!avatarUrl.value && userData.avatar && userData.avatar.trim()) {
-              avatarUrl.value = userData.avatar
-              localStorage.setItem('avatarUrl', userData.avatar)
+              const absolute = toAbsoluteUrl(userData.avatar)
+              avatarUrl.value = absolute
+              localStorage.setItem('avatarUrl', absolute)
             }
           }
         } else {

@@ -111,6 +111,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock, Right } from '@element-plus/icons-vue'
 import { userAPI } from '../api/user.js'
+import request from '../api/axios.js'
 
 export default {
   name: 'Login',
@@ -223,9 +224,12 @@ export default {
             localStorage.setItem('nickname', loginForm.username)
           }
           
-          // 保存头像URL到localStorage
+          // 保存头像URL到localStorage（规范为绝对URL）
           if (response.data.userInfo && response.data.userInfo.avatar) {
-            localStorage.setItem('avatarUrl', response.data.userInfo.avatar)
+            const apiOrigin = new URL(request.defaults.baseURL).origin
+            const avatar = response.data.userInfo.avatar
+            const absolute = /^https?:\/\//i.test(avatar) ? avatar : `${apiOrigin}${avatar.startsWith('/') ? avatar : '/' + avatar}`
+            localStorage.setItem('avatarUrl', absolute)
           }
           
           // 登录成功动画效果

@@ -154,7 +154,7 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
@@ -165,6 +165,7 @@ import MarkdownEditor from '../components/MarkdownEditor.vue'
 import AIChatWindow from '../components/AIChatWindow.vue'
 import { noteAPI } from '../api/note.js'
 import { userAPI } from '../api/user.js'
+import request from '../api/axios.js'
 
 export default {
   name: 'ThreeColumnLayout',
@@ -183,6 +184,13 @@ export default {
     Document
   },
   setup() {
+    // 工具：将后端可能返回的相对路径统一转换为绝对URL
+    const apiOrigin = new URL(request.defaults.baseURL).origin
+    const toAbsoluteUrl = (url) => {
+      if (!url) return ''
+      if (/^https?:\/\//i.test(url)) return url
+      return `${apiOrigin}${url.startsWith('/') ? url : '/' + url}`
+    }
     const router = useRouter()
     const username = ref('')
     const avatarUrl = ref('')
@@ -193,6 +201,14 @@ export default {
     const contentChanged = ref(false)
     const saving = ref(false)
     const sidebarCollapsed = ref(false)
+    
+    // 返回页面时或窗口聚焦时，同步最新头像
+    const refreshAvatarFromLocal = () => {
+      const saved = localStorage.getItem('avatarUrl') || ''
+      if (saved && saved !== avatarUrl.value) {
+        avatarUrl.value = saved
+      }
+    }
     
     // 获取头像文本（用户名首字母）
     const getAvatarText = computed(() => {
@@ -687,8 +703,9 @@ export default {
             
             // 更新头像URL
             if (userData.avatar && userData.avatar.trim()) {
-              avatarUrl.value = userData.avatar
-              localStorage.setItem('avatarUrl', userData.avatar)
+              const absolute = toAbsoluteUrl(userData.avatar)
+              avatarUrl.value = absolute
+              localStorage.setItem('avatarUrl', absolute)
             }
             
             // 更新localStorage中的用户信息
@@ -745,7 +762,7 @@ export default {
         avatarUrl.value = savedAvatar
       } else if (userInfo && userInfo.avatar) {
         // 如果本地没有，才使用localStorage中userInfo的头像
-        avatarUrl.value = userInfo.avatar
+        avatarUrl.value = toAbsoluteUrl(userInfo.avatar)
       }
       
       // 检查是否已登录
@@ -766,6 +783,18 @@ export default {
       
       // 监听浏览器关闭事件
       window.addEventListener('beforeunload', handleBeforeUnload)
+      // 在窗口聚焦或页面变为可见时刷新头像
+      window.addEventListener('focus', refreshAvatarFromLocal)
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          refreshAvatarFromLocal()
+        }
+      })
+    })
+    
+    onUnmounted(() => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      window.removeEventListener('focus', refreshAvatarFromLocal)
     })
     
     return {

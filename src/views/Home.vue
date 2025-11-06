@@ -134,7 +134,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { noteAPI } from '../api/note.js'
@@ -367,6 +367,13 @@ export default {
       router.push('/settings')
     }
     
+    const refreshAvatarFromLocal = () => {
+      const saved = localStorage.getItem('avatarUrl') || ''
+      if (saved && saved !== avatarUrl.value) {
+        avatarUrl.value = saved
+      }
+    }
+
     onMounted(() => {
       // 优先获取保存的昵称，如果没有则获取用户名
       const savedNickname = localStorage.getItem('nickname')
@@ -391,6 +398,18 @@ export default {
         // 加载笔记数据
         loadNotes()
       }
+
+      // 在窗口聚焦或页面可见时刷新头像
+      window.addEventListener('focus', refreshAvatarFromLocal)
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          refreshAvatarFromLocal()
+        }
+      })
+    })
+
+    onUnmounted(() => {
+      window.removeEventListener('focus', refreshAvatarFromLocal)
     })
     
     return {
