@@ -164,6 +164,7 @@ import {
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 import AIChatWindow from '../components/AIChatWindow.vue'
 import { noteAPI } from '../api/note.js'
+import { userAPI } from '../api/user.js'
 
 export default {
   name: 'ThreeColumnLayout',
@@ -660,29 +661,90 @@ export default {
     }
     
     onMounted(async () => {
+      // 获取用户信息
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      const userId = userInfo.id
+      
       // 立即从localStorage加载头像URL（与Settings.vue保持一致的键名）
       avatarUrl.value = localStorage.getItem('avatarUrl') || ''
       
-      // 获取用户信息
-      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-      
-      // 优先从userInfo获取用户名，其次从localStorage的username获取
-      if (userInfo && (userInfo.username || userInfo.name)) {
-        username.value = userInfo.username || userInfo.name
+      // 首先尝试从后端获取最新的用户信息
+      if (userId) {
+        try {
+          const response = await userAPI.getUserInfo(userId)
+          
+          // 处理不同格式的响应
+          if (response.code === 200 || response.success === true || response.ok === true) {
+            // 获取响应中的用户数据
+            const userData = response.data || response
+            
+            // 优先使用后端返回的昵称，如果没有昵称则使用用户名
+            if (userData.nickname && userData.nickname.trim()) {
+              username.value = userData.nickname
+            } else if (userData.username || userData.name) {
+              username.value = userData.username || userData.name
+            }
+            
+            // 更新头像URL
+            if (userData.avatar && userData.avatar.trim()) {
+              avatarUrl.value = userData.avatar
+              localStorage.setItem('avatarUrl', userData.avatar)
+            }
+            
+            // 更新localStorage中的用户信息
+            const updatedUserInfo = {
+              ...userInfo,
+              nickname: userData.nickname,
+              username: userData.username,
+              name: userData.name,
+              avatar: userData.avatar
+            }
+            localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo))
+          }
+        } catch (error) {
+          console.error('获取用户信息失败:', error)
+          // 如果后端获取失败，从localStorage获取
+          if (userInfo && (userInfo.username || userInfo.name)) {
+            username.value = userInfo.username || userInfo.name
+          } else {
+            // 优先获取保存的昵称
+            const savedNickname = localStorage.getItem('nickname')
+            if (savedNickname) {
+              username.value = savedNickname
+            } else {
+              // 如果没有昵称，获取用户名
+              const savedUsername = localStorage.getItem('username')
+              if (savedUsername) {
+                username.value = savedUsername
+              }
+            }
+          }
+        }
       } else {
-        // 获取保存的用户名
-        const savedUsername = localStorage.getItem('username')
-        if (savedUsername) {
-          username.value = savedUsername
+        // 如果没有userId，从localStorage获取
+        if (userInfo && (userInfo.username || userInfo.name)) {
+          username.value = userInfo.username || userInfo.name
+        } else {
+          // 优先获取保存的昵称
+          const savedNickname = localStorage.getItem('nickname')
+          if (savedNickname) {
+            username.value = savedNickname
+          } else {
+            // 如果没有昵称，获取用户名
+            const savedUsername = localStorage.getItem('username')
+            if (savedUsername) {
+              username.value = savedUsername
+            }
+          }
         }
       }
       
-      // 获取用户头像URL
+      // 如果本地有保存的头像URL，使用它
       const savedAvatar = localStorage.getItem('avatarUrl')
       if (savedAvatar) {
         avatarUrl.value = savedAvatar
       } else if (userInfo && userInfo.avatar) {
-        // 如果本地没有，才使用后端数据
+        // 如果本地没有，才使用localStorage中userInfo的头像
         avatarUrl.value = userInfo.avatar
       }
       

@@ -433,7 +433,13 @@ export default {
       // 先加载本地头像
       loadAvatar()
       
-      // 然后加载用户信息，但不覆盖已有头像
+      // 加载本地保存的昵称
+      const savedNickname = localStorage.getItem('nickname')
+      if (savedNickname) {
+        nickname.value = savedNickname
+      }
+      
+      // 然后加载用户信息，但不覆盖已有头像和昵称
       await loadUserInfo()
       // 加载笔记数量
       loadNoteCount()
@@ -516,6 +522,9 @@ export default {
               // 更新本地缓存
               email.value = updateForm.email
               nickname.value = updateForm.nickname
+              
+              // 同步更新localStorage中的昵称
+              localStorage.setItem('nickname', updateForm.nickname)
             } else {
               ElMessage.error(response.msg || '更新失败')
             }

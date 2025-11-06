@@ -368,10 +368,15 @@ export default {
     }
     
     onMounted(() => {
-      // 获取保存的用户名，如果没有则显示默认值
-      const savedUsername = localStorage.getItem('username')
-      if (savedUsername) {
-        username.value = savedUsername
+      // 优先获取保存的昵称，如果没有则获取用户名
+      const savedNickname = localStorage.getItem('nickname')
+      if (savedNickname) {
+        username.value = savedNickname
+      } else {
+        const savedUsername = localStorage.getItem('username')
+        if (savedUsername) {
+          username.value = savedUsername
+        }
       }
       
       // 立即从localStorage加载头像URL

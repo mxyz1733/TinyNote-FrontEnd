@@ -208,11 +208,19 @@ export default {
           localStorage.setItem('token', response.data.token)
           localStorage.setItem('userInfo', JSON.stringify(response.data.userInfo))
           
-          // 保存用户名
+          // 保存用户名和昵称
           if (rememberMe.value) {
             localStorage.setItem('username', loginForm.username)
           } else {
             localStorage.removeItem('username')
+          }
+          
+          // 保存用户昵称到localStorage
+          if (response.data.userInfo && response.data.userInfo.nickname) {
+            localStorage.setItem('nickname', response.data.userInfo.nickname)
+          } else {
+            // 如果没有昵称，使用用户名作为昵称
+            localStorage.setItem('nickname', loginForm.username)
           }
           
           // 保存头像URL到localStorage
