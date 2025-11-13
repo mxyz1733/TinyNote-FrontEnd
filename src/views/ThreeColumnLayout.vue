@@ -1,5 +1,21 @@
 <template>
   <div class="three-column-container">
+    <!-- AI助手控制按钮 - 仅在workspace界面显示 -->
+    <div 
+      v-if="showAIButton" 
+      class="ai-control-button"
+      :class="{ 'active': aiSidebarVisible }"
+      @mousedown="startDragging"
+      @click="toggleAISidebar"
+      :style="{
+        left: buttonPosition.x + 'px',
+        top: buttonPosition.y + 'px'
+      }"
+    >
+      <el-icon class="ai-icon"><AiOutline /></el-icon>
+      <span class="ai-button-text">{{ aiSidebarVisible ? '关闭AI' : '打开AI' }}</span>
+    </div>
+    
     <!-- 顶部导航栏 -->
     <el-header class="main-header">
       <div class="header-left">
@@ -153,10 +169,11 @@
       </el-main>
       
       <!-- 右侧拖动条 -->
-      <div class="resizer right-resizer" @mousedown="(event) => startResizing('right', event)"></div>
+      <div v-if="aiSidebarVisible" class="resizer right-resizer" @mousedown="(event) => startResizing('right', event)"></div>
       
       <!-- 右侧AI对话窗口 -->
       <el-aside 
+        v-if="aiSidebarVisible"
         :width="rightSidebarWidth" 
         class="ai-sidebar"
         :style="{ width: rightSidebarWidth }"
@@ -177,8 +194,11 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   User, ArrowDown, Plus, Refresh, Setting, SwitchButton, Delete, 
-  Search as SearchIcon, Menu, Document, CirclePlus 
+  Search as SearchIcon, Menu, Document, CirclePlus, Message 
 } from '@element-plus/icons-vue'
+
+// 为了使用Message图标作为AI图标的替代
+const AiOutline = Message
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 import AIChatWindow from '../components/AIChatWindow.vue'
 import { noteAPI } from '../api/note.js'
@@ -199,7 +219,8 @@ export default {
     Delete,
     Search: SearchIcon,
     Menu,
-    Document
+    Document,
+    AiOutline
   },
   setup() {
     // 工具：将后端可能返回的相对路径统一转换为绝对URL
@@ -220,6 +241,13 @@ export default {
     const resizingType = ref('')
     const startX = ref(0)
     const startWidth = ref(0)
+    
+    // AI助手控制按钮相关变量
+    const showAIButton = ref(true) // 仅在workspace界面显示
+    const aiSidebarVisible = ref(true) // AI助手侧边栏显示状态
+    const buttonPosition = ref({ x: 20, y: 100 }) // 按钮初始位置
+    const isDragging = ref(false) // 是否正在拖动
+    const dragOffset = ref({ x: 0, y: 0 }) // 拖动偏移量
     
     // 开始调整大小
     const startResizing = (type, event) => {
@@ -292,6 +320,63 @@ export default {
       document.body.classList.remove('resizing')
       document.removeEventListener('mousemove', handleResize)
       document.removeEventListener('mouseup', stopResizing)
+    }
+    
+    // AI助手控制按钮拖动相关函数
+    const startDragging = (event) => {
+      // 防止点击事件触发
+      event.stopPropagation()
+      
+      // 计算鼠标相对于按钮左上角的偏移量
+      const buttonRect = event.currentTarget.getBoundingClientRect()
+      dragOffset.value = {
+        x: event.clientX - buttonRect.left,
+        y: event.clientY - buttonRect.top
+      }
+      
+      isDragging.value = true
+      document.addEventListener('mousemove', handleDrag)
+      document.addEventListener('mouseup', stopDragging)
+      
+      // 防止拖动时选中文本
+      document.body.style.userSelect = 'none'
+    }
+    
+    const handleDrag = (event) => {
+      if (!isDragging.value) return
+      
+      // 计算新位置，确保按钮不会移出视口
+      const containerRect = document.querySelector('.main-container').getBoundingClientRect()
+      const newX = event.clientX - dragOffset.value.x
+      const newY = event.clientY - dragOffset.value.y
+      
+      // 设置边界约束
+      const minX = 10
+      const minY = 10
+      const maxX = containerRect.width - 120 // 按钮宽度约100px，留20px余量
+      const maxY = containerRect.height - 50 // 按钮高度约30px，留20px余量
+      
+      buttonPosition.value = {
+        x: Math.max(minX, Math.min(newX, maxX)),
+        y: Math.max(minY, Math.min(newY, maxY))
+      }
+    }
+    
+    const stopDragging = () => {
+      isDragging.value = false
+      document.removeEventListener('mousemove', handleDrag)
+      document.removeEventListener('mouseup', stopDragging)
+      document.body.style.userSelect = ''
+    }
+    
+    // 切换AI助手侧边栏显示状态
+    const toggleAISidebar = () => {
+      if (isDragging.value) return
+      
+      aiSidebarVisible.value = !aiSidebarVisible.value
+      
+      // 可以在这里添加额外的逻辑，比如保存状态到localStorage
+      localStorage.setItem('aiSidebarVisible', aiSidebarVisible.value.toString())
     }
     const notes = ref([])
     const searchKeyword = ref('')
@@ -829,6 +914,23 @@ export default {
       const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
       const userId = userInfo.id
       
+      // 从localStorage恢复AI侧边栏状态
+      const savedAIState = localStorage.getItem('aiSidebarVisible')
+      if (savedAIState !== null) {
+        aiSidebarVisible.value = savedAIState === 'true'
+      }
+      
+      // 从localStorage恢复按钮位置
+      const savedPosition = localStorage.getItem('aiButtonPosition')
+      if (savedPosition) {
+        try {
+          const position = JSON.parse(savedPosition)
+          buttonPosition.value = position
+        } catch (e) {
+          console.error('恢复按钮位置失败:', e)
+        }
+      }
+      
       // 立即从localStorage加载头像URL（与Settings.vue保持一致的键名）
       avatarUrl.value = localStorage.getItem('avatarUrl') || ''
       
@@ -943,6 +1045,9 @@ export default {
     onUnmounted(() => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
       window.removeEventListener('focus', refreshAvatarFromLocal)
+      
+      // 保存按钮位置
+      localStorage.setItem('aiButtonPosition', JSON.stringify(buttonPosition.value))
     })
     
     return {
@@ -981,7 +1086,15 @@ export default {
       formatDate,
       toggleSidebar,
       handleLogout,
-      goToProfile
+      goToProfile,
+      // AI助手控制按钮相关
+      showAIButton,
+      aiSidebarVisible,
+      buttonPosition,
+      startDragging,
+      handleDrag,
+      stopDragging,
+      toggleAISidebar
     }
   }
 }
@@ -997,6 +1110,51 @@ export default {
   position: relative;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   overflow: hidden;
+}
+
+/* AI助手控制按钮样式 */
+.ai-control-button {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+  cursor: move;
+  transition: all 0.3s ease;
+  z-index: 500;
+  font-size: 14px;
+  font-weight: 500;
+  user-select: none;
+  backdrop-filter: blur(10px);
+}
+
+.ai-control-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+.ai-control-button.active {
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
+  box-shadow: 0 6px 20px rgba(64, 158, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.ai-icon {
+  font-size: 18px;
+}
+
+.ai-button-text {
+  white-space: nowrap;
+}
+
+/* 拖动过程中的样式 */
+.ai-control-button:active {
+  transform: scale(0.98);
 }
 
 /* 数学公式装饰背景 */
@@ -1599,6 +1757,18 @@ body.resizing {
   
   .sidebar-collapse-trigger {
     display: flex !important;
+  }
+  
+  /* 移动端AI控制按钮样式调整 */
+  .ai-control-button {
+    font-size: 12px;
+    padding: 6px 12px;
+    min-width: 80px;
+    justify-content: center;
+  }
+  
+  .ai-button-text {
+    font-size: 11px;
   }
 }
 </style>
