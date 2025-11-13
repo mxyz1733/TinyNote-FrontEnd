@@ -136,20 +136,50 @@ export default {
         await registerFormRef.value.validate()
         loading.value = true
         
-        // 调用真实的注册API
-        const response = await userAPI.register({
+        // 调用注册API
+        const registerResponse = await userAPI.register({
           username: registerForm.username,
           email: registerForm.email,
           password: registerForm.password
         })
         
-        // 注册成功后跳转到登录页
-        ElMessage.success('注册成功，请登录')
-        router.push('/login')
+        // 注册成功后立即调用登录API获取token和用户信息
+        const loginResponse = await userAPI.login({
+          username: registerForm.username,
+          password: registerForm.password
+        })
+        
+        if (loginResponse.code === 200) {
+          // 保存token和用户信息到localStorage
+          localStorage.setItem('token', loginResponse.data.token)
+          localStorage.setItem('userInfo', JSON.stringify(loginResponse.data.userInfo))
+          
+          // 保存用户昵称到localStorage
+          if (loginResponse.data.userInfo && loginResponse.data.userInfo.nickname) {
+            localStorage.setItem('nickname', loginResponse.data.userInfo.nickname)
+          } else {
+            // 如果没有昵称，使用用户名作为昵称
+            localStorage.setItem('nickname', registerForm.username)
+          }
+          
+          // 保存头像URL到localStorage
+          if (loginResponse.data.userInfo && loginResponse.data.userInfo.avatar) {
+            localStorage.setItem('avatarUrl', loginResponse.data.userInfo.avatar)
+          }
+          
+          // 注册成功提示
+          ElMessage.success('注册成功，正在跳转到工作区...')
+          
+          // 延迟跳转到工作区页面
+          setTimeout(() => {
+            router.push('/workspace')
+          }, 1000)
+        }
         loading.value = false
         
       } catch (error) {
         console.error('注册失败', error)
+        ElMessage.error('注册失败，请稍后重试')
         loading.value = false
       }
     }
