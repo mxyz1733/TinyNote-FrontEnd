@@ -140,21 +140,20 @@ export default {
           // 尝试将整个响应转为字符串
           aiResponse = JSON.stringify(response)
         }
-        
-        // 清理文本内容，移除可能包含的思考标记和多余信息
-        // 改进后的清理逻辑，更全面地处理不同格式的AI响应
+
         // 移除思考标记及其之间的内容
-        aiResponse = aiResponse.replace(/(?:^|[\s])[<\[][\s]*think[\s]*[>\]]/gi, '').trim()
-        aiResponse = aiResponse.replace(/(?:^|[\s])[<\[][\s]*\/think[\s]*[>\]]/gi, '').trim()
-        // 使用字符串替换而不是正则表达式处理特殊字符
-        if (aiResponse.includes('</think>')) {
-          const start = aiResponse.indexOf('</think>')
-          const end = aiResponse.indexOf('</think>', start + 3)
-          if (start !== -1 && end !== -1) {
-            aiResponse = aiResponse.substring(0, start) + aiResponse.substring(end + 3)
-          }
-        }
+        // aiResponse = aiResponse.replace(/(?:^|[\s])[<\[][\s]*think[\s]*[>\]]/gi, '').trim()
+        // aiResponse = aiResponse.replace(/(?:^|[\s])[<\[][\s]*\/think[\s]*[>\]]/gi, '').trim()
+        // // 使用字符串替换而不是正则表达式处理特殊字符
+        // if (aiResponse.includes('</think>')) {
+        //   const start = aiResponse.indexOf('</think>')
+        //   const end = aiResponse.indexOf('</think>', start + 3)
+        //   if (start !== -1 && end !== -1) {
+        //     aiResponse = aiResponse.substring(0, start) + aiResponse.substring(end + 3)
+        //   }
+        // }
         aiResponse = aiResponse.trim()
+        aiResponse = aiResponse.substring(aiResponse.indexOf('</think>') + 10, aiResponse.length + 1)
         
         // 移除可能的AssistantMessage元数据部分
         const assistantMsgRegex = /AssistantMessage\s*\[.*?\]/gi;

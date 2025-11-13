@@ -32,20 +32,10 @@ request.interceptors.response.use(
   response => {
     // 对响应数据做点什么
     const res = response.data
-    
-    console.log('===== 原始响应数据 =====')
-    console.log('响应状态码:', response.status)
-    console.log('响应数据:', JSON.stringify(res, null, 2))
-    
+
     // 检查是否是Result对象格式（包含code, message, data三个标准字段）
     const isResultFormat = res && typeof res === 'object' && 
                           'code' in res && 'message' in res && 'data' in res
-    
-    console.log('===== 响应分析 =====')
-    console.log('是否为Result格式:', isResultFormat)
-    console.log('响应code:', res.code)
-    console.log('响应message:', res.message || res.msg || '无消息')
-    console.log('响应数据结构:', Object.keys(res))
     
     if (isResultFormat) {
       // 是Result格式，按照Result格式处理
