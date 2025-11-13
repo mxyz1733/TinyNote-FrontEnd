@@ -55,7 +55,7 @@
     <!-- 主内容区域 -->
     <div class="main-container">
       <!-- 左侧文件列表 -->
-      <el-aside :width="sidebarCollapsed ? '50px' : '300px'" class="file-sidebar" :class="{ 'collapsed': sidebarCollapsed }">
+      <el-aside :width="sidebarCollapsed ? '50px' : leftSidebarWidth" class="file-sidebar" :class="{ 'collapsed': sidebarCollapsed }">
         <div v-if="!sidebarCollapsed" class="sidebar-content">
           <div class="sidebar-header">
             <h3>我的笔记</h3>
@@ -108,6 +108,13 @@
         </div>
       </el-aside>
       
+      <!-- 左侧拖动条 -->
+      <div 
+        v-if="!sidebarCollapsed" 
+        class="resizer left-resizer"
+        @mousedown="(event) => startResizing('left', event)"
+      ></div>
+      
       <!-- 中间编辑区域 -->
       <el-main class="editor-main">
         <div v-if="currentNote" class="editor-container">
@@ -145,8 +152,15 @@
         </div>
       </el-main>
       
+      <!-- 右侧拖动条 -->
+      <div class="resizer right-resizer" @mousedown="(event) => startResizing('right', event)"></div>
+      
       <!-- 右侧AI对话窗口 -->
-      <el-aside width="350px" class="ai-sidebar" style="display:block !important; background-color: #f8f9fa; border-left: 2px solid #409eff;">
+      <el-aside 
+        :width="rightSidebarWidth" 
+        class="ai-sidebar"
+        :style="{ width: rightSidebarWidth }"
+      >
         <!-- 使用AIChatWindow组件 -->
         <AIChatWindow 
           :current-note-content="currentNote?.content || ''" 
@@ -198,6 +212,87 @@ export default {
     const router = useRouter()
     const username = ref('')
     const avatarUrl = ref('')
+    
+    // 侧边栏宽度
+    const leftSidebarWidth = ref('300px')
+    const rightSidebarWidth = ref('350px')
+    const isResizing = ref(false)
+    const resizingType = ref('')
+    const startX = ref(0)
+    const startWidth = ref(0)
+    
+    // 开始调整大小
+    const startResizing = (type, event) => {
+      isResizing.value = true
+      resizingType.value = type
+      startX.value = event.clientX
+      document.body.classList.add('resizing')
+      
+      if (type === 'left') {
+        startWidth.value = parseInt(leftSidebarWidth.value)
+      } else {
+        startWidth.value = parseInt(rightSidebarWidth.value)
+      }
+      
+      document.addEventListener('mousemove', handleResize)
+      document.addEventListener('mouseup', stopResizing)
+    }
+    
+    // 处理调整大小
+    const handleResize = (event) => {
+      if (!isResizing.value) return
+      
+      const containerWidth = document.querySelector('.main-container').offsetWidth
+      
+      if (resizingType.value === 'left') {
+        // 左侧拖动：鼠标向右移动增加宽度，向左移动减少宽度
+        const delta = event.clientX - startX.value
+        const newWidth = startWidth.value + delta
+        // 设置最小宽度和最大宽度限制
+        if (newWidth >= 200 && newWidth <= containerWidth * 0.4) {
+          leftSidebarWidth.value = `${newWidth}px`
+        }
+      } else if (resizingType.value === 'right') {
+        // 右侧拖动：鼠标向左移动增加宽度，向右移动减少宽度
+        const delta = startX.value - event.clientX
+        const newWidth = startWidth.value + delta
+        // 设置最小宽度和最大宽度限制
+        if (newWidth >= 300 && newWidth <= containerWidth * 0.4) {
+          console.log('Right sidebar resizing:', { newWidth, startWidth: startWidth.value, delta })
+          
+          // 更新响应式变量
+          rightSidebarWidth.value = `${newWidth}px`
+          
+          // 同时设置CSS变量
+          document.documentElement.style.setProperty('--ai-sidebar-width', `${newWidth}px`)
+          
+          // 直接操作DOM元素，确保宽度变化立即生效
+          const aiSidebar = document.querySelector('.ai-sidebar')
+          if (aiSidebar) {
+            // 移除可能存在的inline !important样式
+            aiSidebar.style.width = ''
+            // 然后设置新宽度
+            aiSidebar.style.width = `${newWidth}px`
+            console.log('AI sidebar width set to:', aiSidebar.style.width)
+          }
+          
+          // 确保.el-aside元素也被更新
+          const asideElement = document.querySelector('.el-aside.ai-sidebar')
+          if (asideElement) {
+            asideElement.style.width = `${newWidth}px`
+            console.log('EL aside width set to:', asideElement.style.width)
+          }
+        }
+      }
+    }
+    
+    // 停止调整大小
+    const stopResizing = () => {
+      isResizing.value = false
+      document.body.classList.remove('resizing')
+      document.removeEventListener('mousemove', handleResize)
+      document.removeEventListener('mouseup', stopResizing)
+    }
     const notes = ref([])
     const searchKeyword = ref('')
     const sortType = ref('time')
@@ -863,6 +958,15 @@ export default {
       saving,
       sidebarCollapsed,
       mdInputRef,
+      leftSidebarWidth,
+      rightSidebarWidth,
+      isResizing,
+      resizingType,
+      startX,
+      startWidth,
+      startResizing,
+      handleResize,
+      stopResizing,
       triggerImportMd,
       handleImportMd,
       createNote,
@@ -925,10 +1029,10 @@ export default {
 /* 确保AI侧边栏始终显示（除非在移动端） */
 @media (min-width: 769px) {
   .ai-sidebar {
-    display: block !important;
-    width: 350px !important;
-    transform: none !important;
-    position: static !important;
+    display: block;
+    transform: none;
+    position: static;
+    /* 移除固定宽度的!important，让Vue绑定的width属性起作用 */
   }
 }
 
@@ -1258,10 +1362,11 @@ export default {
   border-radius: 16px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
   overflow: hidden;
-  min-width: 350px;
+  min-width: 300px; /* 设置最小宽度为300px，与JavaScript中的限制一致 */
   border: 1px solid rgba(255, 255, 255, 0.3);
   z-index: 150;
   position: relative;
+  /* 不设置固定宽度，由Vue组件的:width属性动态控制 */
 }
 
 .ai-chat-container {
@@ -1289,6 +1394,61 @@ export default {
   background: rgba(255, 255, 255, 1);
   color: #409eff;
   transform: scale(1.05);
+}
+
+/* 主容器样式 */
+.main-container {
+  display: flex;
+  height: calc(100vh - 60px);
+  overflow: hidden;
+}
+
+/* 编辑器主区域样式 */
+.editor-main {
+  flex: 1;
+  min-width: 0; /* 防止内容溢出 */
+  overflow: auto;
+}
+
+/* 调整大小的拖动条基础样式 */
+.resizer {
+  background-color: #409eff;
+  transition: background-color 0.2s;
+  cursor: col-resize;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 10;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.left-resizer {
+  width: 4px;
+  margin-left: -2px;
+}
+
+.right-resizer {
+  width: 4px;
+  margin-left: -2px; /* 使用margin-left而不是margin-right */
+}
+
+.left-resizer:hover, .left-resizer:active {
+  background-color: #66b1ff;
+  width: 6px;
+  margin-left: -3px;
+}
+
+.right-resizer:hover, .right-resizer:active {
+  background-color: #66b1ff;
+  width: 6px;
+  margin-left: -3px;
+}
+
+/* 拖动时的鼠标样式 */
+body.resizing {
+  cursor: col-resize;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* 修改创建笔记按钮样式 */
@@ -1352,6 +1512,12 @@ export default {
   
   .editor-main {
     flex: 1;
+    min-width: 0; /* 防止内容溢出 */
+  }
+  
+  /* 在移动端隐藏拖动条 */
+  .resizer {
+    display: none;
   }
 }
 
@@ -1378,8 +1544,13 @@ export default {
 
 /* 响应式设计 */
 @media (max-width: 1200px) {
+  /* 保持默认宽度为300px，但允许用户拖动调整 */
   .ai-sidebar {
-    width: 300px !important;
+    /* 移除固定宽度，让Vue绑定的width属性起作用 */
+  }
+  
+  :deep(.el-aside.ai-sidebar) {
+    /* 不设置固定宽度，让Vue绑定的width属性起作用 */
   }
 }
 
@@ -1406,10 +1577,16 @@ export default {
     top: 60px;
     bottom: 0;
     z-index: 1000;
+    width: 300px !important;
   }
   
   .ai-sidebar.show {
     transform: translateX(0);
+  }
+  
+  /* 在移动端隐藏拖动条 */
+  .resizer {
+    display: none;
   }
   
   .file-sidebar {
