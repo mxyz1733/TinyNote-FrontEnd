@@ -703,8 +703,12 @@ export default {
     
     // 退出登录
     const handleLogout = () => {
-      // 清除token
+      // 清除token和用户相关信息
       localStorage.removeItem('token')
+      localStorage.removeItem('userInfo')
+      localStorage.removeItem('username')
+      localStorage.removeItem('avatarUrl')
+      localStorage.removeItem('nickname')
       ElMessage.success('退出登录成功')
       // 跳转到登录页
       router.push('/login')
