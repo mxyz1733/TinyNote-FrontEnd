@@ -207,7 +207,7 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 20px;
 }
 
@@ -234,7 +234,15 @@ export default {
 
 .register-btn {
   width: 100%;
-  height: 40px;
+  height: 44px;
+  border-radius: 8px;
+  margin-top: 20px;
+  transition: all 0.3s;
+  border: none;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
   font-size: 16px;
 }
 
@@ -245,5 +253,33 @@ export default {
 
 .login-redirect span {
   color: #606266;
+}
+
+.register-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+.login-redirect a {
+  color: #667eea;
+  text-decoration: none;
+  transition: all 0.3s;
+}
+
+.login-redirect a:hover {
+  color: #5a67d8;
+  background: rgba(102, 126, 234, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.el-checkbox__input.is-checked .el-checkbox__inner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+}
+
+.el-checkbox__input.is-checked + .el-checkbox__label {
+  color: #667eea;
 }
 </style>

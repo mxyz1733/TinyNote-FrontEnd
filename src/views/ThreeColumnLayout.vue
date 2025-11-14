@@ -291,9 +291,6 @@ export default {
           // 更新响应式变量
           rightSidebarWidth.value = `${newWidth}px`
           
-          // 同时设置CSS变量
-          document.documentElement.style.setProperty('--ai-sidebar-width', `${newWidth}px`)
-          
           // 直接操作DOM元素，确保宽度变化立即生效
           const aiSidebar = document.querySelector('.ai-sidebar')
           if (aiSidebar) {
@@ -1139,8 +1136,8 @@ export default {
 }
 
 .ai-control-button.active {
-  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
-  box-shadow: 0 6px 20px rgba(64, 158, 255, 0.5);
+  background: linear-gradient(135deg, #7c8ceb 0%, #667eea 100%);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
   border-color: rgba(255, 255, 255, 0.3);
 }
 
@@ -1263,11 +1260,11 @@ export default {
 }
 
 .search-input :deep(.el-input__wrapper:hover) {
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
 }
 
 .search-input :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px #409eff inset, 0 0 0 2px rgba(64, 158, 255, 0.1);
+  box-shadow: 0 0 0 1px var(--el-color-primary) inset, 0 0 0 2px rgba(102, 126, 234, 0.1);
 }
 
 .header-right {
@@ -1289,7 +1286,7 @@ export default {
 
 .user-btn:hover {
   background: rgba(255, 255, 255, 1);
-  border-color: rgba(64, 158, 255, 0.2);
+  border-color: rgba(102, 126, 234, 0.2);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
@@ -1354,10 +1351,10 @@ export default {
 }
 
 .note-item.active {
-  background: linear-gradient(135deg, rgba(64, 158, 255, 0.1) 0%, rgba(64, 158, 255, 0.05) 100%);
-  border-left: 3px solid #409eff;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(102, 126, 234, 0.05) 100%);
+  border-left: 3px solid var(--el-color-primary);
   transform: translateX(4px);
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
 }
 
 .note-item-header {
@@ -1550,7 +1547,7 @@ export default {
 
 .sidebar-collapse-trigger:hover {
   background: rgba(255, 255, 255, 1);
-  color: #409eff;
+  color: var(--el-color-primary);
   transform: scale(1.05);
 }
 

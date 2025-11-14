@@ -305,12 +305,12 @@ export default {
 }
 
 .user-message .message-avatar {
-  background-color: #409eff;
+  background-color: var(--el-color-primary-light-5);
   color: white;
 }
 
 .ai-message .message-avatar {
-  background-color: #67c23a;
+  background-color: var(--el-color-primary);
   color: white;
 }
 
@@ -325,7 +325,7 @@ export default {
 }
 
 .user-message .message-content {
-  background-color: #ecf5ff;
+  background-color: rgba(102, 126, 234, 0.1);
   color: #303133;
 }
 

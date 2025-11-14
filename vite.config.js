@@ -5,6 +5,9 @@ import { resolve } from 'path'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue()],
+  // server: {
+  //   host: '0.0.0.0'  // 允许所有网络接口访问
+  // },
   css: {
     preprocessorOptions: {
       css: {
