@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container glass-effect">
+  <div class="app-container">
     <!-- 路由出口 -->
     <router-view />
   </div>
