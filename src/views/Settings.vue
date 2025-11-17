@@ -557,7 +557,7 @@ export default {
           passwordLoading.value = true
           try {
             const response = await userAPI.changePassword({
-              id: userId.value,
+              userId: userId.value,
               oldPassword: passwordForm.oldPassword,
               newPassword: passwordForm.newPassword
             })
