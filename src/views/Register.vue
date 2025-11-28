@@ -18,18 +18,28 @@
           <el-input
             v-model="registerForm.username"
             placeholder="请输入用户名"
-            prefix-icon="el-icon-user"
             clearable
-          />
+          >
+            <template #prefix>
+              <div class="icon-wrapper">
+                <el-icon><User /></el-icon>
+              </div>
+            </template>
+          </el-input>
         </el-form-item>
         
         <el-form-item prop="email">
           <el-input
             v-model="registerForm.email"
             placeholder="请输入邮箱"
-            prefix-icon="el-icon-message"
             clearable
-          />
+          >
+            <template #prefix>
+              <div class="icon-wrapper">
+                <el-icon><Message /></el-icon>
+              </div>
+            </template>
+          </el-input>
         </el-form-item>
         
         <el-form-item prop="password">
@@ -37,9 +47,14 @@
             v-model="registerForm.password"
             type="password"
             placeholder="请输入密码"
-            prefix-icon="el-icon-lock"
             show-password
-          />
+          >
+            <template #prefix>
+              <div class="icon-wrapper">
+                <el-icon><Lock /></el-icon>
+              </div>
+            </template>
+          </el-input>
         </el-form-item>
         
         <el-form-item prop="confirmPassword">
@@ -47,9 +62,14 @@
             v-model="registerForm.confirmPassword"
             type="password"
             placeholder="请确认密码"
-            prefix-icon="el-icon-lock"
             show-password
-          />
+          >
+            <template #prefix>
+              <div class="icon-wrapper">
+                <el-icon><Lock /></el-icon>
+              </div>
+            </template>
+          </el-input>
         </el-form-item>
         
         <el-form-item>
@@ -81,10 +101,16 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { User, Message, Lock } from '@element-plus/icons-vue'
 import { userAPI } from '../api/user.js'
 
 export default {
   name: 'Register',
+  components: {
+    User,
+    Message,
+    Lock
+  },
   setup() {
     const router = useRouter()
     const registerFormRef = ref()
@@ -208,6 +234,19 @@ export default {
   justify-content: center;
   align-items: center;
   padding: 20px;
+}
+
+/* 图标容器样式 */
+.icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #909399;
+}
+
+/* 输入框聚焦时图标颜色变化 */
+:deep(.el-input__wrapper.is-focus) .icon-wrapper {
+  color: #409eff;
 }
 
 .register-card {
