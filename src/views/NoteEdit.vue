@@ -23,13 +23,27 @@
     </el-header>
     
     <el-main class="edit-content">
-      <el-card class="editor-card">
-        <markdown-editor
-          v-model="note.content"
-          :read-only="saving"
-          @change="contentChange"
-        />
-      </el-card>
+      <div class="content-wrapper">
+        <div class="editor-wrapper">
+          <el-card class="editor-card">
+            <markdown-editor
+              v-model="note.content"
+              :read-only="saving"
+              @change="contentChange"
+            />
+          </el-card>
+        </div>
+        
+        <div class="ai-chat-wrapper" v-if="showAIChat">
+          <el-card class="chat-card">
+            <AIChatWindow 
+              :visible="showAIChat"
+              @update:visible="showAIChat = $event"
+              @closed="handleChatClosed"
+            />
+          </el-card>
+        </div>
+      </div>
     </el-main>
   </div>
 </template>
@@ -40,6 +54,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Document } from '@element-plus/icons-vue'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
+import AIChatWindow from '../components/AIChatWindow.vue'
 import { noteAPI } from '../api/note.js'
 
 export default {
@@ -47,7 +62,8 @@ export default {
   components: {
     MarkdownEditor,
     ArrowLeft,
-    Document
+    Document,
+    AIChatWindow
   },
   setup() {
     const route = useRoute()
@@ -61,6 +77,9 @@ export default {
       content: '',
       id: noteId || null
     })
+    
+    // AI聊天窗口显示状态
+    const showAIChat = ref(false)
 
     // 内容变化处理
     const contentChange = () => {
@@ -213,12 +232,22 @@ export default {
       }
     }
 
+    // 处理AI聊天窗口关闭事件
+    const handleChatClosed = () => {
+      // 关闭聊天窗口
+      showAIChat.value = false
+      console.log('AI聊天窗口已关闭')
+    }
+    
     return {
       note,
       saving,
+      contentChanged,
+      showAIChat,
       saveNote,
       goBack,
-      contentChange
+      contentChange,
+      handleChatClosed
     }
   }
 }
@@ -333,8 +362,34 @@ export default {
   z-index: 1;
 }
 
+/* 内容包装器样式 */
+.content-wrapper {
+  height: 100%;
+  display: flex;
+  gap: 12px;
+  transition: all 0.3s ease;
+}
+
+.editor-wrapper {
+  flex: 1;
+  height: 100%;
+  transition: flex 0.3s ease;
+}
+
+.editor-wide {
+  flex: 1;
+  width: 100%;
+}
+
+.ai-chat-wrapper {
+  width: 400px;
+  height: 100%;
+  transition: all 0.3s ease;
+}
+
 /* 编辑器卡片样式 */
-.editor-card {
+.editor-card,
+.chat-card {
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -347,7 +402,8 @@ export default {
   transition: all 0.3s ease;
 }
 
-.editor-card:hover {
+.editor-card:hover,
+.chat-card:hover {
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
 }
 
@@ -368,6 +424,20 @@ export default {
 
 :deep(.el-button--primary:active) {
   transform: translateY(0);
+}
+
+:deep(.el-button--info) {
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #66a6ff 0%, #89f7fe 100%);
+  border: none;
+}
+
+:deep(.el-button--warning) {
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #ffd34e 0%, #f88646 100%);
+  border: none;
 }
 
 :deep(.el-button--text) {
@@ -408,6 +478,15 @@ export default {
   
   .edit-content {
     padding: 8px;
+  }
+  
+  .content-wrapper {
+    flex-direction: column;
+  }
+  
+  .ai-chat-wrapper {
+    width: 100%;
+    height: 400px;
   }
 }
 

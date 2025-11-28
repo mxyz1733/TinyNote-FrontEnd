@@ -181,6 +181,8 @@
         <!-- 使用AIChatWindow组件 -->
         <AIChatWindow 
           :current-note-content="currentNote?.content || ''" 
+          :visible="aiSidebarVisible"
+          @update:visible="aiSidebarVisible = $event"
           @ai-response="handleAIResponse"
         />
       </el-aside>
@@ -374,6 +376,9 @@ export default {
       
       // 可以在这里添加额外的逻辑，比如保存状态到localStorage
       localStorage.setItem('aiSidebarVisible', aiSidebarVisible.value.toString())
+      
+      // 调试信息：输出切换状态
+      console.log('AI sidebar toggled:', aiSidebarVisible.value)
     }
     const notes = ref([])
     const searchKeyword = ref('')

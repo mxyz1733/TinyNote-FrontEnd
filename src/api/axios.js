@@ -6,7 +6,7 @@ const request = axios.create({
   // 后端API基础URL
   baseURL: 'http://localhost:8080/api',
   // 请求超时时间
-  timeout: 10000
+  timeout: 100000
 })
 
 // 请求拦截器

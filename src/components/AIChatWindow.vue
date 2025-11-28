@@ -1,86 +1,182 @@
 <template>
-  <div class="ai-chat-window">
+  <div class="ai-chat-window" :class="{ 'minimized': minimized }" v-if="visible">
     <div class="chat-header">
       <h3>AI助手</h3>
-      <el-button type="text" size="small" @click="clearChat">
-        <el-icon><Delete /></el-icon> 清空
-      </el-button>
-    </div>
-    
-    <div class="chat-messages" ref="chatContainer">
-      <div v-if="messages.length === 0" class="empty-chat">
-        <el-empty description="开始与AI助手对话吧" :image-size="80" />
-        <p class="tips">你可以请AI帮你撰写、修改或优化笔记内容</p>
-      </div>
-      
-      <div v-for="(message, index) in messages" :key="index" 
-           :class="['chat-message', message.role === 'user' ? 'user-message' : 'ai-message']">
-        <div class="message-avatar">
-          {{ message.role === 'user' ? '👤' : '🤖' }}
-        </div>
-        <div class="message-content">
-          {{ message.content }}
-        </div>
-      </div>
-      
-      <div v-if="isTyping" class="chat-message ai-message">
-        <div class="message-avatar">🤖</div>
-        <div class="message-content typing">
-          <el-icon class="is-loading"><Loading /></el-icon>
-          <span>AI正在思考中...</span>
-        </div>
-      </div>
-    </div>
-    
-    <div class="chat-input-container">
-      <el-input
-        v-model="inputMessage"
-        type="textarea"
-        :rows="2"
-        placeholder="输入你的问题或需求..."
-        resize="none"
-        @keyup.enter.ctrl="sendMessage"
-      />
-      <div class="chat-actions">
-        <div class="shortcuts">
-          <el-tooltip content="使用Ctrl+Enter快速发送">
-            <el-button size="small" type="text" plain>快捷提示</el-button>
-          </el-tooltip>
-        </div>
-        <el-button type="primary" @click="sendMessage" :disabled="!inputMessage.trim() || isTyping">
-          <el-icon><CirclePlus /></el-icon> 发送
+      <div class="header-actions">
+        <el-button type="text" size="small" @click="clearChat" :disabled="isTyping">
+          <el-icon><Delete /></el-icon> 清空
+        </el-button>
+        <el-button type="text" size="small" @click="toggleMinimize">
+          <el-icon><Minus /></el-icon> {{ minimized ? '展开' : '收起' }}
+        </el-button>
+        <el-button type="text" size="small" @click="closeWindow">
+          <el-icon><Close /></el-icon> 关闭
         </el-button>
       </div>
+    </div>
+    
+    <div v-if="!minimized" class="chat-content">
+      <div class="chat-messages" ref="chatContainer">
+        <div v-if="messages.length === 0" class="empty-chat">
+          <el-empty description="开始与AI助手对话吧" :image-size="80" />
+          <p class="tips">你可以请AI帮你撰写、修改或优化笔记内容</p>
+        </div>
+        
+        <div v-for="(message, index) in messages" :key="index" 
+             :class="['chat-message', message.role === 'user' ? 'user-message' : 'ai-message']">
+          <div class="message-avatar">
+            {{ message.role === 'user' ? '👤' : '🤖' }}
+          </div>
+          <div class="message-content">
+            <div v-if="message.isStreaming" class="streaming-indicator">
+              <el-icon class="is-loading"><Loading /></el-icon>
+            </div>
+            <div class="message-text" v-html="formatMessage(message.content)"></div>
+            <div v-if="message.timestamp" class="message-time">{{ formatTime(message.timestamp) }}</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="chat-input-container">
+        <el-input
+          v-model="inputMessage"
+          type="textarea"
+          :rows="2"
+          placeholder="输入你的问题或需求..."
+          resize="none"
+          @keyup.enter.ctrl="sendMessage"
+          :disabled="isTyping"
+        />
+        <div class="chat-actions">
+          <div class="shortcuts">
+            <el-tooltip content="使用Ctrl+Enter快速发送">
+              <el-button size="small" type="text" plain>快捷提示</el-button>
+            </el-tooltip>
+          </div>
+          <el-button type="primary" @click="sendMessage" :disabled="!inputMessage.trim() || isTyping">
+            <el-icon><CirclePlus /></el-icon> 发送
+          </el-button>
+        </div>
+      </div>
+    </div>
+    
+    <div v-else class="minimized-view" @click="toggleMinimize">
+      <el-icon><ChatDotRound /></el-icon>
+      <span>AI助手</span>
+      <span v-if="unreadCount > 0" class="unread-badge">{{ unreadCount }}</span>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, watch, onMounted, defineEmits } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Delete, Loading, CirclePlus } from '@element-plus/icons-vue'
+import { Delete, Loading, CirclePlus, Minus, Close, ChatDotRound } from '@element-plus/icons-vue'
 import aiService from '../api/ai'
+
+// 简单的Markdown渲染辅助函数
+const renderMarkdown = (text) => {
+  if (!text) return ''
+  
+  // 基本的HTML转义
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+  
+  // 格式化代码块
+  html = html.replace(/```([\s\S]*?)```/g, '<pre class="code-block"><code>$1</code></pre>')
+  
+  // 格式化行内代码
+  html = html.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
+  
+  // 格式化标题
+  html = html.replace(/^# (.*$)/gm, '<h1 class="md-heading">$1</h1>')
+  html = html.replace(/^## (.*$)/gm, '<h2 class="md-heading">$1</h2>')
+  html = html.replace(/^### (.*$)/gm, '<h3 class="md-heading">$1</h3>')
+  
+  // 格式化加粗
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+  html = html.replace(/__(.*?)__/g, '<strong>$1</strong>')
+  
+  // 格式化斜体
+  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>')
+  html = html.replace(/_(.*?)_/g, '<em>$1</em>')
+  
+  // 格式化列表
+  html = html.replace(/^\* (.*$)/gm, '<li>$1</li>')
+  html = html.replace(/<\/li>\n<li>/g, '</li><li>')
+  html = html.replace(/<li>(.*?)<\/li>/gs, '<ul class="md-list">$&</ul>')
+  
+  // 格式化有序列表
+  html = html.replace(/^\d\. (.*$)/gm, '<li>$1</li>')
+  html = html.replace(/<\/li>\n<li>/g, '</li><li>')
+  html = html.replace(/<li>(.*?)<\/li>/gs, '<ol class="md-ordered-list">$&</ol>')
+  
+  // 格式化引用
+  html = html.replace(/^> (.*$)/gm, '<blockquote class="md-quote">$1</blockquote>')
+  
+  // 格式化分割线
+  html = html.replace(/^---$/gm, '<hr class="md-hr">')
+  
+  // 格式化换行符
+  html = html.replace(/\n/g, '<br>')
+  
+  return html
+}
 
 export default {
   name: 'AIChatWindow',
   components: {
     Delete,
     Loading,
-    CirclePlus
+    CirclePlus,
+    Minus,
+    Close,
+    ChatDotRound
   },
   props: {
     // 可以传入当前编辑的笔记内容，让AI了解上下文
     currentNoteContent: {
       type: String,
       default: ''
+    },
+    // 是否显示在侧边栏
+    sidebar: {
+      type: Boolean,
+      default: false
+    },
+    // 控制窗口是否显示的props，与父组件通信
+    visible: {
+      type: Boolean,
+      default: true
+    },
+    userId: {
+      type: String,
+      default: ''
+    },
+    defaultModel: {
+      type: String,
+      default: 'gpt-3.5-turbo'
     }
   },
-  emits: ['ai-response'],
+  emits: ['ai-response', 'close', 'toggle-minimize', 'update:visible', 'closed'],
   setup(props, { emit }) {
     const messages = ref([])
     const inputMessage = ref('')
     const isTyping = ref(false)
     const chatContainer = ref(null)
+    const minimized = ref(false)
+    const unreadCount = ref(0)
+    let currentStreamMessageIndex = -1
+    let currentAbortController = null
+    
+    // 监听最小化状态变化
+    watch(minimized, (newVal) => {
+      emit('toggle-minimize', newVal)
+    })
     
     // 发送消息
     const sendMessage = async () => {
@@ -89,151 +185,258 @@ export default {
       const userMessage = inputMessage.value.trim()
       messages.value.push({
         role: 'user',
-        content: userMessage
+        content: userMessage,
+        timestamp: new Date()
       })
       
       inputMessage.value = ''
       isTyping.value = true
       
+      // 添加AI消息占位符
+      currentStreamMessageIndex = messages.value.push({
+        role: 'assistant',
+        content: '',
+        isStreaming: true,
+        timestamp: new Date()
+      }) - 1
+      
       // 滚动到底部
-      await scrollToBottom()
+        await optimizedScrollToBottom()
       
       try {
-        // 调用真实的AI API
         // 构建请求参数
-        const requestData = {
-          userId: 1, // 实际项目中应该从登录用户信息中获取
-          prompt: userMessage
-        }
+        let messageText = userMessage
         
         // 如果有当前笔记内容，可以在prompt中加入，提供上下文
         if (props.currentNoteContent) {
-          requestData.prompt = `上下文信息：${props.currentNoteContent}\n\n用户问题：${userMessage}`
+          messageText = `上下文信息：${props.currentNoteContent}\n\n用户问题：${userMessage}`
         }
         
-        const response = await aiService.chatWithAI(requestData)
+        const requestData = {
+          message: messageText
+        }
         
-        // 根据后端返回格式处理响应
-        let aiResponse = ''
-        if (typeof response === 'string') {
-          // 如果后端直接返回字符串
-          aiResponse = response
-        } else if (response.data) {
-          // 如果是Result格式，获取data字段
-          if (typeof response.data === 'string') {
-            aiResponse = response.data
-          } else if (response.data.textContent) {
-            // 处理包含textContent的复杂对象
-            aiResponse = response.data.textContent
-          } else if (response.data.message || response.data.msg) {
-            aiResponse = response.data.message || response.data.msg
-          } else {
-            aiResponse = JSON.stringify(response.data)
+        // 创建AbortController用于可能的取消操作
+        currentAbortController = new AbortController()
+        
+        // 调用SSE流式API
+        aiService.chatWithAIStream(
+          requestData,
+          // 接收消息的回调
+          (chunk) => {
+            if (currentStreamMessageIndex >= 0 && currentStreamMessageIndex < messages.value.length) {
+              // 处理接收到的数据块
+              let contentChunk = ''
+              if (typeof chunk === 'string') {
+                contentChunk = chunk
+              } else if (chunk.content) {
+                contentChunk = chunk.content
+              } else if (typeof chunk === 'object') {
+                // 尝试提取可能的文本内容
+                contentChunk = JSON.stringify(chunk)
+              }
+              
+              // 确保中文显示正常，移除可能的控制字符
+              const controlCharRegex = /[\u0000-\u001F\u007F-\u009F]/g;
+              contentChunk = contentChunk.replace(controlCharRegex, '')
+              
+              // 追加到当前AI消息
+              messages.value[currentStreamMessageIndex].content += contentChunk
+              
+              // 滚动到底部
+                optimizedScrollToBottom()
+            }
+          },
+          // 完成回调
+          () => {
+            if (currentStreamMessageIndex >= 0 && currentStreamMessageIndex < messages.value.length) {
+              messages.value[currentStreamMessageIndex].isStreaming = false
+              
+              // 发送ai-response事件
+              emit('ai-response', messages.value[currentStreamMessageIndex].content)
+              
+              // 如果窗口最小化，增加未读计数
+              if (minimized.value) {
+                unreadCount.value++
+              }
+            }
+            
+            isTyping.value = false
+            currentStreamMessageIndex = -1
+            currentAbortController = null
+            
+            // 滚动到底部
+              nextTick(() => optimizedScrollToBottom())
+          },
+          // 错误回调
+          (error) => {
+            console.error('AI请求失败:', error)
+            ElMessage.error('AI请求失败，请稍后重试')
+            
+            if (currentStreamMessageIndex >= 0 && currentStreamMessageIndex < messages.value.length) {
+              messages.value[currentStreamMessageIndex] = {
+                role: 'assistant',
+                content: '抱歉，我暂时无法响应你的请求。请稍后再试或检查网络连接。',
+                isStreaming: false,
+                timestamp: new Date(),
+                isError: true
+              }
+            }
+            
+            isTyping.value = false
+            currentStreamMessageIndex = -1
+            currentAbortController = null
+            
+            // 滚动到底部
+              nextTick(() => optimizedScrollToBottom())
           }
-        } else if (response.textContent) {
-          // 如果响应对象直接包含textContent
-          aiResponse = response.textContent
-        } else if (response.message || response.msg) {
-          // 如果有message字段，使用它
-          aiResponse = response.message || response.msg
-        } else {
-          // 尝试将整个响应转为字符串
-          aiResponse = JSON.stringify(response)
-        }
-
-        // 移除思考标记及其之间的内容
-        // aiResponse = aiResponse.replace(/(?:^|[\s])[<\[][\s]*think[\s]*[>\]]/gi, '').trim()
-        // aiResponse = aiResponse.replace(/(?:^|[\s])[<\[][\s]*\/think[\s]*[>\]]/gi, '').trim()
-        // // 使用字符串替换而不是正则表达式处理特殊字符
-        // if (aiResponse.includes('</think>')) {
-        //   const start = aiResponse.indexOf('</think>')
-        //   const end = aiResponse.indexOf('</think>', start + 3)
-        //   if (start !== -1 && end !== -1) {
-        //     aiResponse = aiResponse.substring(0, start) + aiResponse.substring(end + 3)
-        //   }
-        // }
-        aiResponse = aiResponse.trim()
-        aiResponse = aiResponse.substring(aiResponse.indexOf('</think>') + 10, aiResponse.length + 1)
-        
-        // 移除可能的AssistantMessage元数据部分
-        const assistantMsgRegex = /AssistantMessage\s*\[.*?\]/gi;
-        aiResponse = aiResponse.replace(assistantMsgRegex, '').trim();
-        
-        // 移除metadata信息
-        const metadataRegex = /metadata\s*=\s*\{[^}]*\}/gi;
-        aiResponse = aiResponse.replace(metadataRegex, '').trim();
-        
-        // 移除textContent标签
-        const textContentRegex = /,\s*textContent\s*=\s*/gi;
-        aiResponse = aiResponse.replace(textContentRegex, '').trim();
-        
-        // 移除末尾的逗号和括号
-        const endCommaRegex = /,\s*\]$/gi;
-        aiResponse = aiResponse.replace(endCommaRegex, '').trim();
-        
-        // 移除其他可能的格式标记
-        const assistantTagRegex = /<\/?assistant>/gi;
-        aiResponse = aiResponse.replace(assistantTagRegex, '').trim();
-        
-        const systemTagRegex = /<\/?system>/gi;
-        aiResponse = aiResponse.replace(systemTagRegex, '').trim();
-        
-        const userTagRegex = /<\/?user>/gi;
-        aiResponse = aiResponse.replace(userTagRegex, '').trim();
-        
-        // 清理多余的空白字符和换行
-        aiResponse = aiResponse.split('\n').map(line => line.trim()).filter(line => line !== '').join('\n\n').trim();
-        
-        // 确保中文显示正常，移除可能的控制字符
-        const controlCharRegex = /[\u0000-\u001F\u007F-\u009F]/g;
-        aiResponse = aiResponse.replace(controlCharRegex, '')
-        
-        messages.value.push({
-          role: 'assistant',
-          content: aiResponse
-        })
-        
-        emit('ai-response', aiResponse)
+        )
       } catch (error) {
-        console.error('AI请求失败:', error)
-        ElMessage.error('AI请求失败，请稍后重试')
+        console.error('发送消息失败:', error)
+        ElMessage.error('发送消息失败')
         
-        // 添加错误消息到聊天记录
-        messages.value.push({
-          role: 'assistant',
-          content: '抱歉，我暂时无法响应你的请求。请稍后再试或检查网络连接。'
-        })
-      } finally {
         isTyping.value = false
+        currentStreamMessageIndex = -1
+        currentAbortController = null
         
-        // 滚动到底部
-        nextTick(() => scrollToBottom())
+        if (currentStreamMessageIndex >= 0 && currentStreamMessageIndex < messages.value.length) {
+          messages.value.splice(currentStreamMessageIndex, 1)
+        }
       }
     }
     
     // 清空聊天
     const clearChat = () => {
       messages.value = []
+      unreadCount.value = 0
     }
     
     // 滚动到底部
     const scrollToBottom = () => {
       nextTick(() => {
-        if (chatContainer.value) {
+        if (chatContainer.value && !minimized.value) {
           chatContainer.value.scrollTop = chatContainer.value.scrollHeight
         }
       })
     }
     
-    return {
-      messages,
-      inputMessage,
-      isTyping,
-      chatContainer,
-      sendMessage,
-      clearChat,
-      scrollToBottom
+    // 切换最小化状态
+    const toggleMinimize = () => {
+      minimized.value = !minimized.value
+      if (!minimized.value) {
+        // 展开时清空未读计数
+        unreadCount.value = 0
+        // 滚动到底部
+        nextTick(() => optimizedScrollToBottom())
+      }
     }
+    
+    // 完全关闭窗口
+    const closeWindow = () => {
+      console.log('closeWindow method called in AIChatWindow')
+      
+      // 清理资源，如关闭当前的SSE连接
+      if (currentAbortController) {
+        currentAbortController.abort()
+        currentAbortController = null
+      }
+      
+      // 向父组件发送关闭事件
+      emit('update:visible', false)
+      emit('closed')
+      console.log('Emitted events: update:visible(false) and closed')
+    }
+    
+    // 格式化消息内容
+    const formatMessage = (content) => {
+      if (!content) return ''
+      
+      // 使用Markdown渲染增强可读性
+      return renderMarkdown(content)
+    }
+    
+    // 优化滚动行为，避免频繁滚动
+    let scrollTimeout = null
+    const optimizedScrollToBottom = () => {
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout)
+      }
+      
+      scrollTimeout = setTimeout(() => {
+        if (chatContainer.value && !minimized.value) {
+          // 平滑滚动到底部
+          chatContainer.value.scrollTo({
+            top: chatContainer.value.scrollHeight,
+            behavior: 'smooth'
+          })
+        }
+        scrollTimeout = null
+      }, 50) // 防抖延迟，减少滚动频率
+    }
+    
+    // 格式化时间
+    const formatTime = (timestamp) => {
+      if (!timestamp) return ''
+      
+      const date = new Date(timestamp)
+      const now = new Date()
+      
+      // 同一天显示时间
+      if (date.toDateString() === now.toDateString()) {
+        return date.toLocaleTimeString('zh-CN', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        })
+      } else {
+        // 不同天显示日期和时间
+        return date.toLocaleString('zh-CN', { 
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit', 
+          minute: '2-digit' 
+        })
+      }
+    }
+    
+    // 组件挂载时的初始化
+        onMounted(() => {
+          // 初始化时加载用户信息
+          if (!props.userId) {
+            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+            if (userInfo.id) {
+              // 如果没有传入userId，尝试从localStorage获取
+              // 注意：这只是一个临时解决方案，实际项目中应该通过props传入
+            }
+          }
+        })
+        
+        // 监听visible变化
+        watch(
+          () => props.visible,
+          (newVal) => {
+            if (newVal && !minimized.value) {
+              // 当窗口从隐藏状态变为显示时，滚动到底部
+              nextTick(() => optimizedScrollToBottom())
+            }
+          }
+        )
+        
+        return {
+        messages,
+        inputMessage,
+        isTyping,
+        chatContainer,
+        minimized,
+        unreadCount,
+        sendMessage,
+        clearChat,
+        scrollToBottom,
+        optimizedScrollToBottom,
+        toggleMinimize,
+        closeWindow,
+        formatMessage,
+        formatTime
+      }
   }
 }
 </script>
@@ -242,9 +445,21 @@ export default {
 .ai-chat-window {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
+  min-height: 300px;
+  max-height: 100%;
+  height: 100%;
   background-color: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+/* 最小化状态 */
+.ai-chat-window.minimized {
+  max-height: 48px;
+  height: 48px;
 }
 
 .chat-header {
@@ -254,6 +469,12 @@ export default {
   padding: 12px 16px;
   background-color: #fff;
   border-bottom: 1px solid #e9ecef;
+  flex-shrink: 0;
+  transition: background-color 0.3s;
+}
+
+.chat-header:hover {
+  background-color: #fafafa;
 }
 
 .chat-header h3 {
@@ -263,11 +484,25 @@ export default {
   color: #303133;
 }
 
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0; /* 确保flex子元素可以正确收缩 */
+  overflow: hidden;
+}
+
 .chat-messages {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
   background-color: #f8f9fa;
+  scroll-behavior: smooth;
 }
 
 .empty-chat {
@@ -322,18 +557,36 @@ export default {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   word-break: break-word;
   line-height: 1.6;
+  position: relative;
 }
 
 .user-message .message-content {
   background-color: rgba(102, 126, 234, 0.1);
   color: #303133;
+  border-bottom-right-radius: 4px;
 }
 
-.typing {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.ai-message .message-content {
+  border-bottom-left-radius: 4px;
+}
+
+.streaming-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
   color: #909399;
+}
+
+.message-text {
+  min-height: 20px;
+  white-space: pre-wrap;
+}
+
+.message-time {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #909399;
+  text-align: right;
 }
 
 .chat-input-container {
@@ -369,6 +622,34 @@ export default {
   color: #909399;
 }
 
+/* 最小化视图 */
+.minimized-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  padding: 0 16px;
+  background-color: #fff;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.minimized-view:hover {
+  background-color: #f5f7fa;
+}
+
+.minimized-view .unread-badge {
+  background-color: #f56c6c;
+  color: white;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+  animation: pulse 2s infinite;
+}
+
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -377,6 +658,18 @@ export default {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
   }
 }
 
@@ -391,11 +684,113 @@ export default {
 }
 
 .chat-messages::-webkit-scrollbar-thumb {
-  background: #ccc;
+  background: #c0c4cc;
   border-radius: 3px;
 }
 
 .chat-messages::-webkit-scrollbar-thumb:hover {
-  background: #999;
+  background: #909399;
+}
+
+/* Markdown 样式支持 */
+:deep(.md-heading) {
+  margin: 8px 0;
+  font-weight: 600;
+  color: inherit;
+}
+
+:deep(h1.md-heading) {
+  font-size: 1.4em;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 4px;
+}
+
+:deep(h2.md-heading) {
+  font-size: 1.2em;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 2px;
+}
+
+:deep(h3.md-heading) {
+  font-size: 1.1em;
+}
+
+:deep(.md-list), :deep(.md-ordered-list) {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+:deep(.md-list li), :deep(.md-ordered-list li) {
+  margin: 4px 0;
+  line-height: 1.6;
+}
+
+:deep(.code-block) {
+  background-color: #f6f8fa;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 8px 0;
+  overflow-x: auto;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+:deep(.code-block code) {
+  background: none;
+  padding: 0;
+  color: #24292e;
+}
+
+:deep(.inline-code) {
+  background-color: #f1f3f4;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+  color: #d63384;
+}
+
+:deep(.md-quote) {
+  border-left: 3px solid #409eff;
+  padding-left: 10px;
+  margin: 8px 0;
+  color: #666;
+  font-style: italic;
+}
+
+:deep(.md-hr) {
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 16px 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .ai-chat-window {
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+  
+  .chat-header h3 {
+    font-size: 14px;
+  }
+  
+  .message-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+  
+  .message-content {
+    padding: 10px 12px;
+  }
+  
+  .chat-messages {
+    padding: 12px;
+    gap: 12px;
+  }
 }
 </style>
