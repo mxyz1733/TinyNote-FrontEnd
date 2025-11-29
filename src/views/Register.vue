@@ -18,7 +18,7 @@
           <el-input
             v-model="registerForm.username"
             placeholder="请输入用户名"
-            prefix-icon="el-icon-user"
+            :prefix-icon="User"
             clearable
           />
         </el-form-item>
@@ -27,7 +27,7 @@
           <el-input
             v-model="registerForm.email"
             placeholder="请输入邮箱"
-            prefix-icon="el-icon-message"
+            :prefix-icon="Message"
             clearable
           />
         </el-form-item>
@@ -37,7 +37,7 @@
             v-model="registerForm.password"
             type="password"
             placeholder="请输入密码"
-            prefix-icon="el-icon-lock"
+            :prefix-icon="Lock"
             show-password
           />
         </el-form-item>
@@ -47,7 +47,7 @@
             v-model="registerForm.confirmPassword"
             type="password"
             placeholder="请确认密码"
-            prefix-icon="el-icon-lock"
+            :prefix-icon="Lock"
             show-password
           />
         </el-form-item>
@@ -81,6 +81,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { User, Message, Lock } from '@element-plus/icons-vue'
 import { userAPI } from '../api/user.js'
 
 // 响应式数据
