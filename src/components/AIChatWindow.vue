@@ -1,18 +1,15 @@
 <template>
-  <div class="ai-chat-window" :class="{ 'minimized': minimized }" v-if="visible">
+  <div class="ai-chat-window" v-if="visible">
     <div class="chat-header">
       <h3>AI助手</h3>
       <div class="header-actions">
         <el-button type="text" size="small" @click="clearChat" :disabled="isTyping">
           <el-icon><Delete /></el-icon> 清空
         </el-button>
-        <el-button type="text" size="small" @click="toggleMinimize">
-          <el-icon><Minus /></el-icon> {{ minimized ? '展开' : '收起' }}
-        </el-button>
       </div>
     </div>
 
-    <div v-if="!minimized" class="chat-content">
+    <div class="chat-content">
       <div class="chat-messages" ref="chatContainer">
         <div v-if="messages.length === 0" class="empty-chat">
           <el-empty description="开始与AI助手对话吧" :image-size="80" />
@@ -55,12 +52,6 @@
           </el-button>
         </div>
       </div>
-    </div>
-
-    <div v-else class="minimized-view" @click="toggleMinimize">
-      <el-icon><ChatDotRound /></el-icon>
-      <span>AI助手</span>
-      <span v-if="unreadCount > 0" class="unread-badge">{{ unreadCount }}</span>
     </div>
   </div>
 </template>
@@ -248,19 +239,9 @@ const sendMessage = async () => {
 // 清空聊天
 const clearChat = () => {
   messages.value = []
-  unreadCount.value = 0
 }
 
-// 切换最小化状态
-const toggleMinimize = () => {
-  minimized.value = !minimized.value
-  if (!minimized.value) {
-    // 展开时清空未读计数
-    unreadCount.value = 0
-    // 滚动到底部
-    nextTick(() => optimizedScrollToBottom())
-  }
-}
+
 
 // 完全关闭窗口
 const closeWindow = () => {
@@ -290,7 +271,7 @@ const optimizedScrollToBottom = () => {
   }
 
   scrollTimeout = setTimeout(() => {
-    if (chatContainer.value && !minimized.value) {
+    if (chatContainer.value) {
       // 平滑滚动到底部
       chatContainer.value.scrollTo({
         top: chatContainer.value.scrollHeight,
@@ -362,12 +343,6 @@ watch(
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   transition: all 0.3s ease;
-}
-
-/* 最小化状态 */
-.ai-chat-window.minimized {
-  max-height: 48px;
-  height: 48px;
 }
 
 .chat-header {
@@ -530,34 +505,6 @@ watch(
   color: #909399;
 }
 
-/* 最小化视图 */
-.minimized-view {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 100%;
-  padding: 0 16px;
-  background-color: #fff;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.minimized-view:hover {
-  background-color: #f5f7fa;
-}
-
-.minimized-view .unread-badge {
-  background-color: #f56c6c;
-  color: white;
-  font-size: 12px;
-  padding: 2px 6px;
-  border-radius: 10px;
-  min-width: 20px;
-  text-align: center;
-  animation: pulse 2s infinite;
-}
-
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -566,18 +513,6 @@ watch(
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.1);
-  }
-  100% {
-    transform: scale(1);
   }
 }
 

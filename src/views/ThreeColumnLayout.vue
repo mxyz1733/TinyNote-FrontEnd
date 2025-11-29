@@ -25,6 +25,9 @@
         <el-button type="default" @click="triggerImportMd" class="create-btn">
           <el-icon><CirclePlus /></el-icon> 导入Markdown
         </el-button>
+        <el-button type="default" @click="toggleAISidebar" class="create-btn">
+          <el-icon><Message /></el-icon> {{ aiSidebarVisible ? '收起AI助手' : '展开AI助手' }}
+        </el-button>
         <input ref="mdInputRef" type="file" accept=".md,text/markdown" style="display:none" @change="handleImportMd" />
         <el-dropdown trigger="click">
           <span class="user-btn" style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
