@@ -208,10 +208,14 @@ const avatarUrl = ref('')
 // 侧边栏宽度
 const leftSidebarWidth = ref('300px')
 const rightSidebarWidth = ref('350px')
+// 用于平滑过渡的目标宽度
+const targetLeftWidth = ref(300)
+const targetRightWidth = ref(350)
 const isResizing = ref(false)
 const resizingType = ref('')
 const startX = ref(0)
 const startWidth = ref(0)
+let resizeAnimationFrame = null
 
 // AI助手控制按钮相关变量
 const showAIButton = ref(true) // 仅在workspace界面显示
@@ -219,6 +223,54 @@ const aiSidebarVisible = ref(true) // AI助手侧边栏显示状态
 const isDragging = ref(false) // 是否正在拖动
 const dragOffset = ref({ x: 0, y: 0 }) // 拖动偏移量
 const buttonPosition = ref({ x: 80, y: 200 }) // 按钮位置，默认在屏幕右侧中间位置
+
+// 平滑调整大小的函数
+const smoothResize = () => {
+  // 左侧侧边栏平滑调整
+  const currentLeftWidth = parseInt(leftSidebarWidth.value)
+  if (Math.abs(currentLeftWidth - targetLeftWidth.value) > 1) {
+    // 使用插值算法，每次调整20%的差值
+    const newLeftWidth = currentLeftWidth + (targetLeftWidth.value - currentLeftWidth) * 0.2
+    leftSidebarWidth.value = `${Math.round(newLeftWidth)}px`
+    
+    // 直接操作DOM元素，确保宽度变化立即生效
+    const fileSidebar = document.querySelector('.file-sidebar')
+    if (fileSidebar) {
+      fileSidebar.style.width = `${Math.round(newLeftWidth)}px`
+    }
+    
+    // 确保.el-aside元素也被更新
+    const asideElement = document.querySelector('.el-aside.file-sidebar')
+    if (asideElement) {
+      asideElement.style.width = `${Math.round(newLeftWidth)}px`
+    }
+  }
+  
+  // 右侧侧边栏平滑调整
+  const currentRightWidth = parseInt(rightSidebarWidth.value)
+  if (Math.abs(currentRightWidth - targetRightWidth.value) > 1) {
+    // 使用插值算法，每次调整20%的差值
+    const newRightWidth = currentRightWidth + (targetRightWidth.value - currentRightWidth) * 0.2
+    rightSidebarWidth.value = `${Math.round(newRightWidth)}px`
+    
+    // 直接操作DOM元素，确保宽度变化立即生效
+    const aiSidebar = document.querySelector('.ai-sidebar')
+    if (aiSidebar) {
+      aiSidebar.style.width = `${Math.round(newRightWidth)}px`
+    }
+    
+    // 确保.el-aside元素也被更新
+    const asideElement = document.querySelector('.el-aside.ai-sidebar')
+    if (asideElement) {
+      asideElement.style.width = `${Math.round(newRightWidth)}px`
+    }
+  }
+  
+  // 如果还需要继续调整，请求下一帧
+  if (Math.abs(currentLeftWidth - targetLeftWidth.value) > 1 || Math.abs(currentRightWidth - targetRightWidth.value) > 1) {
+    resizeAnimationFrame = requestAnimationFrame(smoothResize)
+  }
+}
 
 // 开始调整大小
 const startResizing = (type, event) => {
@@ -249,7 +301,12 @@ const handleResize = (event) => {
     const newWidth = startWidth.value + delta
     // 设置最小宽度和最大宽度限制
     if (newWidth >= 200 && newWidth <= containerWidth * 0.4) {
-      leftSidebarWidth.value = `${newWidth}px`
+      targetLeftWidth.value = newWidth
+      // 取消之前的动画帧，请求新的动画帧
+      if (resizeAnimationFrame) {
+        cancelAnimationFrame(resizeAnimationFrame)
+      }
+      resizeAnimationFrame = requestAnimationFrame(smoothResize)
     }
   } else if (resizingType.value === 'right') {
     // 右侧拖动：鼠标向左移动增加宽度，向右移动减少宽度
@@ -257,27 +314,12 @@ const handleResize = (event) => {
     const newWidth = startWidth.value + delta
     // 设置最小宽度和最大宽度限制
     if (newWidth >= 300 && newWidth <= containerWidth * 0.4) {
-      console.log('Right sidebar resizing:', { newWidth, startWidth: startWidth.value, delta })
-      
-      // 更新响应式变量
-      rightSidebarWidth.value = `${newWidth}px`
-      
-      // 直接操作DOM元素，确保宽度变化立即生效
-      const aiSidebar = document.querySelector('.ai-sidebar')
-      if (aiSidebar) {
-        // 移除可能存在的inline !important样式
-        aiSidebar.style.width = ''
-        // 然后设置新宽度
-        aiSidebar.style.width = `${newWidth}px`
-        console.log('AI sidebar width set to:', aiSidebar.style.width)
+      targetRightWidth.value = newWidth
+      // 取消之前的动画帧，请求新的动画帧
+      if (resizeAnimationFrame) {
+        cancelAnimationFrame(resizeAnimationFrame)
       }
-      
-      // 确保.el-aside元素也被更新
-      const asideElement = document.querySelector('.el-aside.ai-sidebar')
-      if (asideElement) {
-        asideElement.style.width = `${newWidth}px`
-        console.log('EL aside width set to:', asideElement.style.width)
-      }
+      resizeAnimationFrame = requestAnimationFrame(smoothResize)
     }
   }
 }
@@ -288,6 +330,12 @@ const stopResizing = () => {
   document.body.classList.remove('resizing')
   document.removeEventListener('mousemove', handleResize)
   document.removeEventListener('mouseup', stopResizing)
+  
+  // 确保最后一帧调整完成
+  if (resizeAnimationFrame) {
+    cancelAnimationFrame(resizeAnimationFrame)
+    resizeAnimationFrame = requestAnimationFrame(smoothResize)
+  }
 }
 
 // AI助手控制按钮拖动相关函数
@@ -817,7 +865,7 @@ const handleSortChange = (command) => {
 // 获取笔记预览
 const getPreview = (content) => {
   // 去除Markdown标记，截取前50个字符作为预览
-  const plainText = content.replace(/#+ |[*_`~]|\\[.*?\\]\\(.*?\\)|\\n/g, '')
+  const plainText = content.replace(/#+ |[*_`~]|\[.*?\]\(.*?\)|\n/g, '')
   return plainText.length > 50 ? plainText.substring(0, 50) + '...' : plainText
 }
 
@@ -1073,14 +1121,14 @@ onUnmounted(() => {
 .main-header {
   height: 60px;
   padding: 10px 24px;
-  background: rgba(255, 255, 255, 0.95);
+  background: transparent;
   backdrop-filter: blur(15px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
   justify-content: space-between;
   z-index: 300;
-  border-radius: 0 0 16px 16px;
+  border-radius: 16px;
   margin-bottom: 12px;
   transition: all 0.3s ease;
   position: relative;
@@ -1166,7 +1214,6 @@ onUnmounted(() => {
   backdrop-filter: blur(10px);
   border-radius: 16px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(255, 255, 255, 0.2);
