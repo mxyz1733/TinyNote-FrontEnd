@@ -106,7 +106,8 @@ let scrollTimeout = null
 const STORAGE_KEY = 'ai_chat_messages'
 
 // 文本流相关变量
-let textBuffer = '' // 文本缓冲区
+let chunkQueue = [] // 到达的 chunk 队列
+let currentReveal = { chunk: '', pos: 0 } // 当前正在逐字显现的 chunk
 let streamInterval = null // 逐字显示的定时器
 let streamSpeed = 30 // 逐字显示速度（毫秒/字）
 
@@ -118,37 +119,74 @@ let streamSpeed = 30 // 逐字显示速度（毫秒/字）
 const preprocessText = (text) => {
   if (!text) return ''
   
-  // 移除控制字符
-  const controlCharRegex = /[\u0000-\u001F\u007F-\u009F]/g;
+  // 移除控制字符，但保留换行符\n(ASCII 10)和回车符\r(ASCII 13)
+  const controlCharRegex = /[\u0000-\u0009\u000B-\u001F\u007F-\u009F]/g;
   return text.replace(controlCharRegex, '')
 }
 
-// 逐字显示文本函数
+// 转义 HTML 并保留换行为 <br>
+const escapeAndNlToBr = (s) => {
+  if (!s) return ''
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
+}
+
+// 逐字显示文本函数（chunk-level reveal）
 const streamText = () => {
-  if (textBuffer.length === 0) {
-    // 文本流结束，清除定时器
-    if (streamInterval) {
-      clearInterval(streamInterval)
-      streamInterval = null
+  // 如果没有当前 chunk，尝试从队列取一个
+  if (!currentReveal.chunk || currentReveal.pos >= currentReveal.chunk.length) {
+    if (chunkQueue.length === 0) {
+      // 队列为空，结束定时器
+      if (streamInterval) {
+        clearInterval(streamInterval)
+        streamInterval = null
+      }
+      return
     }
-    return
+    // 取出下一个 chunk，重置 pos
+    currentReveal.chunk = chunkQueue.shift()
+    currentReveal.pos = 0
+
+    // 在开始 reveal 之前，记录当前已确认的 raw 内容和已渲染的 HTML（用于拼接显示）
+    if (currentStreamMessageIndex >= 0 && currentStreamMessageIndex < messages.value.length) {
+      // 确保 messages[].content 用作已确认的 raw markdown
+      if (!messages.value[currentStreamMessageIndex].content) messages.value[currentStreamMessageIndex].content = ''
+      try {
+        messages.value[currentStreamMessageIndex].__renderedBefore = formatMessage(messages.value[currentStreamMessageIndex].content)
+      } catch (e) {
+        messages.value[currentStreamMessageIndex].__renderedBefore = escapeAndNlToBr(messages.value[currentStreamMessageIndex].content)
+      }
+    }
   }
-  
-  // 从缓冲区取出一个字符
-  const char = textBuffer.charAt(0)
-  textBuffer = textBuffer.slice(1)
-  
-  // 更新当前AI消息
+
+  // reveal 当前 chunk 的下一个字符
+  const ch = currentReveal.chunk.charAt(currentReveal.pos)
+  currentReveal.pos += 1
+
   if (currentStreamMessageIndex >= 0 && currentStreamMessageIndex < messages.value.length) {
-    // 更新原始内容
-    messages.value[currentStreamMessageIndex].content += char
-    
-    // 直接使用原始Markdown文本作为渲染内容，不进行HTML转换
-    // 这样可以显示Markdown文本处理过程
-    messages.value[currentStreamMessageIndex].renderedContent = messages.value[currentStreamMessageIndex].content
-    
+    const msg = messages.value[currentStreamMessageIndex]
+    // visiblePart 为当前 chunk 已 reveal 的字符串
+    const visiblePart = currentReveal.chunk.slice(0, currentReveal.pos)
+
+    // 渲染：先显示已确认部分的 HTML，然后追加转义后的可见部分（作为纯文本），避免在中间状态调用 marked 导致渲染不稳定
+    msg.renderedContent = (msg.__renderedBefore || '') + escapeAndNlToBr(visiblePart)
+
     // 滚动到底部
     optimizedScrollToBottom()
+
+    // 如果当前 chunk reveal 完成，把 chunk 合并到 msg.content，并用 marked 渲染完整内容
+    if (currentReveal.pos >= currentReveal.chunk.length) {
+      msg.content = (msg.content || '') + currentReveal.chunk
+      try {
+        msg.renderedContent = formatMessage(msg.content)
+      } catch (e) {
+        msg.renderedContent = escapeAndNlToBr(msg.content)
+      }
+      // 清除临时字段
+      delete msg.__renderedBefore
+      // 准备下一个 chunk（下次 interval 会取）
+      currentReveal.chunk = ''
+      currentReveal.pos = 0
+    }
   }
 }
 
@@ -201,96 +239,112 @@ const sendMessage = async () => {
         // 接收消息的回调
         (chunk) => {
           if (currentStreamMessageIndex >= 0 && currentStreamMessageIndex < messages.value.length) {
-            // 处理接收到的数据块
+            // 处理接收到的数据块，兼容多种后端格式：字符串、{markdown: '...'}、{content:'...'} 等
             let contentChunk = ''
             if (typeof chunk === 'string') {
               contentChunk = chunk
-            } else if (chunk.content) {
-              contentChunk = chunk.content
-            } else if (typeof chunk === 'object') {
-              // 尝试提取可能的文本内容
-              contentChunk = JSON.stringify(chunk)
+            } else if (chunk && typeof chunk === 'object') {
+              if (chunk.markdown) {
+                contentChunk = chunk.markdown
+              } else if (chunk.content) {
+                contentChunk = chunk.content
+              } else if (chunk.type === 'delta' && chunk.markdown) {
+                contentChunk = chunk.markdown
+              } else {
+                // 兜底：将对象序列化为文本
+                try {
+                  contentChunk = JSON.stringify(chunk)
+                } catch (e) {
+                  contentChunk = ''
+                }
+              }
             }
 
             // 预处理文本
             contentChunk = preprocessText(contentChunk)
 
-            // 将处理后的文本添加到缓冲区
-            textBuffer += contentChunk
+            if (contentChunk) {
+              // 将处理后的 chunk 推入队列（chunk-level reveal）
+              chunkQueue.push(contentChunk)
 
-            // 如果还没有开始逐字显示，启动定时器
-            if (!streamInterval) {
-              streamInterval = setInterval(streamText, streamSpeed)
+              // 如果还没有开始逐字显示，启动定时器
+              if (!streamInterval) {
+                streamInterval = setInterval(streamText, streamSpeed)
+              }
             }
           }
         },
         // 完成回调
-        () => {
-          // 等待缓冲区文本显示完成
-          const checkBufferEmpty = () => {
-            if (textBuffer.length === 0) {
-              if (currentStreamMessageIndex >= 0 && currentStreamMessageIndex < messages.value.length) {
-                messages.value[currentStreamMessageIndex].isStreaming = false
-                
-                // 最终也直接使用Markdown文本，不进行HTML转换
-                // 保持与逐字显示一致的显示效果
-                messages.value[currentStreamMessageIndex].renderedContent = messages.value[currentStreamMessageIndex].content
-
-                // 发送ai-response事件
-                emit('ai-response', messages.value[currentStreamMessageIndex].content)
-              }
-
-              // 清除定时器
-              if (streamInterval) {
-                clearInterval(streamInterval)
-                streamInterval = null
-              }
-
-              isTyping.value = false
-              currentStreamMessageIndex = -1
-              currentAbortController = null
-
-              // 滚动到底部
-              nextTick(() => optimizedScrollToBottom())
-            } else {
-              // 继续等待
-              setTimeout(checkBufferEmpty, 100)
-            }
+() => {
+  // 等待缓冲区文本显示完成
+  const checkBufferEmpty = () => {
+    if (chunkQueue.length === 0 && (!currentReveal.chunk || currentReveal.pos >= currentReveal.chunk.length)) {
+      if (currentStreamMessageIndex >= 0 && currentStreamMessageIndex < messages.value.length) {
+          messages.value[currentStreamMessageIndex].isStreaming = false
+          // 获取当前内容
+          const currentContent = messages.value[currentStreamMessageIndex].content
+          // 使用统一渲染函数渲染最终内容
+          try {
+            messages.value[currentStreamMessageIndex].renderedContent = formatMessage(currentContent)
+          } catch (e) {
+            messages.value[currentStreamMessageIndex].renderedContent = currentContent.replace(/</g, '&lt;')
           }
+          // 发送ai-response事件，传回纯 markdown 文本
+          emit('ai-response', { markdown: currentContent })
+      }
 
-          checkBufferEmpty()
-        },
+      // 清除定时器
+      if (streamInterval) {
+        clearInterval(streamInterval)
+        streamInterval = null
+      }
+
+      isTyping.value = false
+      currentStreamMessageIndex = -1
+      currentAbortController = null
+
+      // 滚动到底部
+      nextTick(() => optimizedScrollToBottom())
+    } else {
+      // 继续等待
+      setTimeout(checkBufferEmpty, 100)
+    }
+  }
+
+  checkBufferEmpty()
+},
         // 错误回调
-        (error) => {
-          console.error('AI请求失败:', error)
-          ElMessage.error('AI请求失败，请稍后重试')
+(error) => {
+  console.error('AI请求失败:', error)
+  ElMessage.error('AI请求失败，请稍后重试')
 
-          // 清除定时器
-          if (streamInterval) {
-            clearInterval(streamInterval)
-            streamInterval = null
-          }
+  // 清除定时器
+  if (streamInterval) {
+    clearInterval(streamInterval)
+    streamInterval = null
+  }
 
-          if (currentStreamMessageIndex >= 0 && currentStreamMessageIndex < messages.value.length) {
-            const errorMessage = '抱歉，我暂时无法响应你的请求。请稍后再试或检查网络连接。'
-            messages.value[currentStreamMessageIndex] = {
-              role: 'assistant',
-              content: errorMessage,
-              renderedContent: errorMessage, // 错误消息直接显示原始文本
-              isStreaming: false,
-              timestamp: new Date(),
-              isError: true
-            }
-          }
+  if (currentStreamMessageIndex >= 0 && currentStreamMessageIndex < messages.value.length) {
+    const errorMessage = '抱歉，我暂时无法响应你的请求。请稍后再试或检查网络连接。'
+    messages.value[currentStreamMessageIndex] = {
+      role: 'assistant',
+      content: errorMessage,
+      renderedContent: formatMessage(errorMessage),
+      isStreaming: false,
+      timestamp: new Date(),
+      isError: true
+    }
+  }
 
-          isTyping.value = false
-          currentStreamMessageIndex = -1
-          currentAbortController = null
-          textBuffer = '' // 清空缓冲区
+  isTyping.value = false
+  currentStreamMessageIndex = -1
+  currentAbortController = null
+  chunkQueue = []
+  currentReveal = { chunk: '', pos: 0 }
 
-          // 滚动到底部
-          nextTick(() => optimizedScrollToBottom())
-        }
+  // 滚动到底部
+  nextTick(() => optimizedScrollToBottom())
+}
     )
   } catch (error) {
     console.error('发送消息失败:', error)
@@ -311,7 +365,8 @@ const clearChat = () => {
   messages.value = []
   
   // 清空缓冲区和定时器
-  textBuffer = ''
+  chunkQueue = []
+  currentReveal = { chunk: '', pos: 0 }
   if (streamInterval) {
     clearInterval(streamInterval)
     streamInterval = null
@@ -330,7 +385,8 @@ const closeWindow = () => {
   }
   
   // 清空缓冲区和定时器
-  textBuffer = ''
+  chunkQueue = []
+  currentReveal = { chunk: '', pos: 0 }
   if (streamInterval) {
     clearInterval(streamInterval)
     streamInterval = null
@@ -430,9 +486,19 @@ const loadMessagesFromStorage = () => {
     const storedMessages = localStorage.getItem(STORAGE_KEY)
     if (storedMessages) {
       const parsedMessages = JSON.parse(storedMessages)
-      // 确保每条消息都直接显示原始文本，不进行HTML转换
+      // 确保每条消息都使用正确的渲染方式
       parsedMessages.forEach(message => {
-        message.renderedContent = message.content
+        if (message.role === 'assistant') {
+          // 使用统一的 Markdown 渲染函数恢复历史消息的 HTML
+          try {
+            message.renderedContent = formatMessage(message.content || '')
+          } catch (e) {
+            message.renderedContent = (message.content || '').replace(/</g, '&lt;')
+          }
+        } else {
+          // 用户消息直接显示原始文本
+          message.renderedContent = message.content
+        }
       })
       messages.value = parsedMessages
     }

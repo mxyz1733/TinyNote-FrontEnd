@@ -78,9 +78,10 @@ export default {
             eventLines.forEach(line => {
               // 处理data字段
               if (line.startsWith('data:')) {
-                const data = line.trim();
-                if (data) {
-                  eventData += data;
+                // 只提取data:后面的内容，去除前缀
+                const dataContent = line.substring(5).trim();
+                if (dataContent) {
+                  eventData += dataContent;
                 }
               }
             });
