@@ -1,21 +1,5 @@
 <template>
   <div class="three-column-container">
-    <!-- AI助手控制按钮 - 仅在workspace界面显示 -->
-    <div 
-      v-if="showAIButton" 
-      class="ai-control-button"
-      :class="{ 'active': aiSidebarVisible }"
-      @mousedown="startDragging"
-      @click="toggleAISidebar"
-      :style="{
-        left: buttonPosition.x + 'px',
-        top: buttonPosition.y + 'px'
-      }"
-    >
-      <el-icon class="ai-icon"><AiOutline /></el-icon>
-      <span class="ai-button-text">{{ aiSidebarVisible ? '关闭AI' : '打开AI' }}</span>
-    </div>
-    
     <!-- 顶部导航栏 -->
     <el-header class="main-header">
       <div class="header-left">
@@ -243,11 +227,10 @@ export default {
     const resizingType = ref('')
     const startX = ref(0)
     const startWidth = ref(0)
-    
+
     // AI助手控制按钮相关变量
     const showAIButton = ref(true) // 仅在workspace界面显示
     const aiSidebarVisible = ref(true) // AI助手侧边栏显示状态
-    const buttonPosition = ref({ x: 20, y: 100 }) // 按钮初始位置
     const isDragging = ref(false) // 是否正在拖动
     const dragOffset = ref({ x: 0, y: 0 }) // 拖动偏移量
     
@@ -340,27 +323,7 @@ export default {
       // 防止拖动时选中文本
       document.body.style.userSelect = 'none'
     }
-    
-    const handleDrag = (event) => {
-      if (!isDragging.value) return
-      
-      // 计算新位置，确保按钮不会移出视口
-      const containerRect = document.querySelector('.main-container').getBoundingClientRect()
-      const newX = event.clientX - dragOffset.value.x
-      const newY = event.clientY - dragOffset.value.y
-      
-      // 设置边界约束
-      const minX = 10
-      const minY = 10
-      const maxX = containerRect.width - 120 // 按钮宽度约100px，留20px余量
-      const maxY = containerRect.height - 50 // 按钮高度约30px，留20px余量
-      
-      buttonPosition.value = {
-        x: Math.max(minX, Math.min(newX, maxX)),
-        y: Math.max(minY, Math.min(newY, maxY))
-      }
-    }
-    
+
     const stopDragging = () => {
       isDragging.value = false
       document.removeEventListener('mousemove', handleDrag)
@@ -1047,9 +1010,6 @@ export default {
     onUnmounted(() => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
       window.removeEventListener('focus', refreshAvatarFromLocal)
-      
-      // 保存按钮位置
-      localStorage.setItem('aiButtonPosition', JSON.stringify(buttonPosition.value))
     })
     
     return {
@@ -1092,9 +1052,7 @@ export default {
       // AI助手控制按钮相关
       showAIButton,
       aiSidebarVisible,
-      buttonPosition,
       startDragging,
-      handleDrag,
       stopDragging,
       toggleAISidebar
     }
@@ -1114,50 +1072,7 @@ export default {
   overflow: hidden;
 }
 
-/* AI助手控制按钮样式 */
-.ai-control-button {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
-  cursor: move;
-  transition: all 0.3s ease;
-  z-index: 500;
-  font-size: 14px;
-  font-weight: 500;
-  user-select: none;
-  backdrop-filter: blur(10px);
-}
 
-.ai-control-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
-}
-
-.ai-control-button.active {
-  background: linear-gradient(135deg, #7c8ceb 0%, #667eea 100%);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
-  border-color: rgba(255, 255, 255, 0.3);
-}
-
-.ai-icon {
-  font-size: 18px;
-}
-
-.ai-button-text {
-  white-space: nowrap;
-}
-
-/* 拖动过程中的样式 */
-.ai-control-button:active {
-  transform: scale(0.98);
-}
 
 /* 数学公式装饰背景 */
 .three-column-container::before {
@@ -1167,7 +1082,6 @@ export default {
   right: -10%;
   width: 60%;
   height: 60%;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><text y="25" font-family="Arial" font-size="20">\\sum_{i=1}^n i = \\frac{n(n+1)}{2}</text><text y="55" font-family="Arial" font-size="20">e^{i\\pi} + 1 = 0</text><text y="85" font-family="Arial" font-size="20">\\frac{\\partial^2 u}{\\partial t^2} = c^2 \\nabla^2 u</text></svg>');
   background-repeat: no-repeat;
   background-size: contain;
   opacity: 0.05;
@@ -1258,19 +1172,6 @@ export default {
   transition: all 0.3s ease;
 }
 
-.search-input :deep(.el-input__wrapper) {
-  border-radius: 20px;
-  transition: all 0.3s ease;
-  background: rgba(255, 255, 255, 0.8);
-}
-
-.search-input :deep(.el-input__wrapper:hover) {
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
-}
-
-.search-input :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px var(--el-color-primary) inset, 0 0 0 2px rgba(102, 126, 234, 0.1);
-}
 
 .header-right {
   display: flex;
@@ -1529,13 +1430,6 @@ export default {
   /* 不设置固定宽度，由Vue组件的:width属性动态控制 */
 }
 
-.ai-chat-container {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  background: rgba(248, 249, 250, 0.8);
-}
 
 .sidebar-collapse-trigger {
   height: 100%;
@@ -1602,13 +1496,6 @@ export default {
   background-color: #66b1ff;
   width: 6px;
   margin-left: -3px;
-}
-
-/* 拖动时的鼠标样式 */
-body.resizing {
-  cursor: col-resize;
-  user-select: none;
-  -webkit-user-select: none;
 }
 
 /* 修改创建笔记按钮样式 */
@@ -1681,37 +1568,8 @@ body.resizing {
   }
 }
 
-/* 平滑过渡动画 */
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
-}
-
-.slide-enter-active, .slide-leave-active {
-  transition: transform 0.3s ease;
-}
-
-.slide-enter-from, .slide-leave-to {
-  transform: translateX(-20px);
-}
-
 .sidebar-collapse-trigger:hover {
   color: #409eff;
-}
-
-/* 响应式设计 */
-@media (max-width: 1200px) {
-  /* 保持默认宽度为300px，但允许用户拖动调整 */
-  .ai-sidebar {
-    /* 移除固定宽度，让Vue绑定的width属性起作用 */
-  }
-  
-  :deep(.el-aside.ai-sidebar) {
-    /* 不设置固定宽度，让Vue绑定的width属性起作用 */
-  }
 }
 
 @media (max-width: 768px) {
@@ -1759,18 +1617,6 @@ body.resizing {
   
   .sidebar-collapse-trigger {
     display: flex !important;
-  }
-  
-  /* 移动端AI控制按钮样式调整 */
-  .ai-control-button {
-    font-size: 12px;
-    padding: 6px 12px;
-    min-width: 80px;
-    justify-content: center;
-  }
-  
-  .ai-button-text {
-    font-size: 11px;
   }
 }
 </style>

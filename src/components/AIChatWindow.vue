@@ -9,9 +9,6 @@
         <el-button type="text" size="small" @click="toggleMinimize">
           <el-icon><Minus /></el-icon> {{ minimized ? '展开' : '收起' }}
         </el-button>
-        <el-button type="text" size="small" @click="closeWindow">
-          <el-icon><Close /></el-icon> 关闭
-        </el-button>
       </div>
     </div>
     
