@@ -105,202 +105,180 @@
   </div>
 </template>
 
-<script>
-import { ref, reactive, onMounted, watch } from 'vue'
+<script setup>
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock, Right } from '@element-plus/icons-vue'
 import { userAPI } from '../api/user.js'
 import request from '../api/axios.js'
 
-export default {
-  name: 'Login',
-  components: {
-    User,
-    Lock,
-    Right
-  },
-  setup() {
-    const router = useRouter()
-    const loginFormRef = ref()
-    const loading = ref(false)
-    const rememberMe = ref(false)
-    const cardHovered = ref(false)
-    
-    // 输入框聚焦状态
-    const focus = reactive({
-      username: false,
-      password: false
-    })
-    
-    // 抖动动画状态
-    const shake = reactive({
-      username: false,
-      password: false
-    })
-    
-    const loginForm = reactive({
-      username: '',
-      password: ''
-    })
-    
-    // 自定义验证规则，带抖动反馈
-    const rules = {
-      username: [
-        { 
-          required: true, 
-          message: '请输入用户名', 
-          trigger: 'blur',
-          validator: (rule, value, callback) => {
-            if (!value || value.trim() === '') {
-              shake.username = true
-              setTimeout(() => { shake.username = false }, 600)
-              callback(new Error('请输入用户名'))
-            } else if (value.length < 3 || value.length > 20) {
-              shake.username = true
-              setTimeout(() => { shake.username = false }, 600)
-              callback(new Error('长度在 3 到 20 个字符'))
-            } else {
-              callback()
-            }
-          }
-        }
-      ],
-      password: [
-        { 
-          required: true, 
-          message: '请输入密码', 
-          trigger: 'blur',
-          validator: (rule, value, callback) => {
-            if (!value || value.trim() === '') {
-              shake.password = true
-              setTimeout(() => { shake.password = false }, 600)
-              callback(new Error('请输入密码'))
-            } else if (value.length < 6) {
-              shake.password = true
-              setTimeout(() => { shake.password = false }, 600)
-              callback(new Error('密码长度至少为6位'))
-            } else {
-              callback()
-            }
-          }
-        }
-      ]
-    }
-    
-    const handleLogin = async () => {
-      try {
-        // 表单验证
-        await loginFormRef.value.validate()
-        loading.value = true
-        
-        console.log('登录尝试:', { username: loginForm.username, password: '******' })
-        
-        // 调用后端API
-        const response = await userAPI.login({
-          username: loginForm.username,
-          password: loginForm.password
-        })
-        
-        console.log('登录响应:', response)
-        
-        if (response.code === 200) {
-          // 保存token和用户信息到localStorage
-          localStorage.setItem('token', response.data.token)
-          localStorage.setItem('userInfo', JSON.stringify(response.data.userInfo))
-          
-          // 保存用户名和昵称
-          if (rememberMe.value) {
-            localStorage.setItem('username', loginForm.username)
-          } else {
-            localStorage.removeItem('username')
-          }
-          
-          // 保存用户昵称到localStorage
-          if (response.data.userInfo && response.data.userInfo.nickname) {
-            localStorage.setItem('nickname', response.data.userInfo.nickname)
-          } else {
-            // 如果没有昵称，使用用户名作为昵称
-            localStorage.setItem('nickname', loginForm.username)
-          }
-          
-          // 保存头像URL到localStorage（规范为绝对URL）
-          if (response.data.userInfo && response.data.userInfo.avatar) {
-            const apiOrigin = new URL(request.defaults.baseURL).origin
-            const avatar = response.data.userInfo.avatar
-            const absolute = /^https?:\/\//i.test(avatar) ? avatar : `${apiOrigin}${avatar.startsWith('/') ? avatar : '/' + avatar}`
-            localStorage.setItem('avatarUrl', absolute)
-          }
-          
-          // 登录成功动画效果
-          const loginCard = document.querySelector('.login-card')
-          loginCard.classList.add('login-success')
-          
-          ElMessage.success('登录成功')
-          
-          // 延迟跳转到工作区页面
-          setTimeout(() => {
-            router.push('/workspace')
-          }, 800)
+// 响应式数据
+const router = useRouter()
+const loginFormRef = ref()
+const loading = ref(false)
+const rememberMe = ref(false)
+const cardHovered = ref(false)
+
+// 输入框聚焦状态
+const focus = reactive({
+  username: false,
+  password: false
+})
+
+// 抖动动画状态
+const shake = reactive({
+  username: false,
+  password: false
+})
+
+const loginForm = reactive({
+  username: '',
+  password: ''
+})
+
+// 自定义验证规则，带抖动反馈
+const rules = {
+  username: [
+    {
+      required: true,
+      message: '请输入用户名',
+      trigger: 'blur',
+      validator: (rule, value, callback) => {
+        if (!value || value.trim() === '') {
+          shake.username = true
+          setTimeout(() => { shake.username = false }, 600)
+          callback(new Error('请输入用户名'))
+        } else if (value.length < 3 || value.length > 20) {
+          shake.username = true
+          setTimeout(() => { shake.username = false }, 600)
+          callback(new Error('长度在 3 到 20 个字符'))
         } else {
-          ElMessage.error(response.message || '登录失败')
-          // 登录失败时密码框抖动
+          callback()
+        }
+      }
+    }
+  ],
+  password: [
+    {
+      required: true,
+      message: '请输入密码',
+      trigger: 'blur',
+      validator: (rule, value, callback) => {
+        if (!value || value.trim() === '') {
           shake.password = true
           setTimeout(() => { shake.password = false }, 600)
+          callback(new Error('请输入密码'))
+        } else if (value.length < 6) {
+          shake.password = true
+          setTimeout(() => { shake.password = false }, 600)
+          callback(new Error('密码长度至少为6位'))
+        } else {
+          callback()
         }
-        loading.value = false
-        
-      } catch (error) {
-        console.error('登录错误:', error)
-        ElMessage.error('登录失败，请检查网络连接或稍后重试')
-        loading.value = false
       }
     }
+  ]
+}
+
+const handleLogin = async () => {
+  try {
+    // 表单验证
+    await loginFormRef.value.validate()
+    loading.value = true
     
-    const goToRegister = () => {
-      router.push('/register')
-    }
+    console.log('登录尝试:', { username: loginForm.username, password: '******' })
     
-    // 页面加载动画效果
-    onMounted(() => {
-      const container = document.querySelector('.login-container')
-      if (container) {
-        setTimeout(() => {
-          container.classList.add('page-loaded')
-        }, 100)
-      }
-      
-      // 数学公式动画效果
-      setTimeout(() => {
-        const formulas = document.querySelectorAll('.formula')
-        formulas.forEach((formula, index) => {
-          setTimeout(() => {
-            formula.classList.add('formula-visible')
-          }, index * 200)
-        })
-      }, 500)
+    // 调用后端API
+    const response = await userAPI.login({
+      username: loginForm.username,
+      password: loginForm.password
     })
     
-    // 检查是否有记住的用户名
-    const savedUsername = localStorage.getItem('username')
-    if (savedUsername) {
-      loginForm.username = savedUsername
-      rememberMe.value = true
-    }
+    console.log('登录响应:', response)
     
-    return {
-      loginFormRef,
-      loginForm,
-      rules,
-      loading,
-      rememberMe,
-      cardHovered,
-      focus,
-      shake,
-      handleLogin,
-      goToRegister
+    if (response.code === 200) {
+      // 保存token和用户信息到localStorage
+      localStorage.setItem('token', response.data.token)
+      localStorage.setItem('userInfo', JSON.stringify(response.data.userInfo))
+      
+      // 保存用户名和昵称
+      if (rememberMe.value) {
+        localStorage.setItem('username', loginForm.username)
+      } else {
+        localStorage.removeItem('username')
+      }
+      
+      // 保存用户昵称到localStorage
+      if (response.data.userInfo && response.data.userInfo.nickname) {
+        localStorage.setItem('nickname', response.data.userInfo.nickname)
+      } else {
+        // 如果没有昵称，使用用户名作为昵称
+        localStorage.setItem('nickname', loginForm.username)
+      }
+      
+      // 保存头像URL到localStorage（规范为绝对URL）
+      if (response.data.userInfo && response.data.userInfo.avatar) {
+        const apiOrigin = new URL(request.defaults.baseURL).origin
+        const avatar = response.data.userInfo.avatar
+        const absolute = /^https?:\/\//i.test(avatar) ? avatar : `${apiOrigin}${avatar.startsWith('/') ? avatar : '/' + avatar}`
+        localStorage.setItem('avatarUrl', absolute)
+      }
+      
+      // 登录成功动画效果
+      const loginCard = document.querySelector('.login-card')
+      loginCard.classList.add('login-success')
+      
+      ElMessage.success('登录成功')
+      
+      // 延迟跳转到工作区页面
+      setTimeout(() => {
+        router.push('/workspace')
+      }, 800)
+    } else {
+      ElMessage.error(response.message || '登录失败')
+      // 登录失败时密码框抖动
+      shake.password = true
+      setTimeout(() => { shake.password = false }, 600)
     }
+    loading.value = false
+    
+  } catch (error) {
+    console.error('登录错误:', error)
+    ElMessage.error('登录失败，请检查网络连接或稍后重试')
+    loading.value = false
   }
+}
+
+const goToRegister = () => {
+  router.push('/register')
+}
+
+// 页面加载动画效果
+onMounted(() => {
+  const container = document.querySelector('.login-container')
+  if (container) {
+    setTimeout(() => {
+      container.classList.add('page-loaded')
+    }, 100)
+  }
+  
+  // 数学公式动画效果
+  setTimeout(() => {
+    const formulas = document.querySelectorAll('.formula')
+    formulas.forEach((formula, index) => {
+      setTimeout(() => {
+        formula.classList.add('formula-visible')
+      }, index * 200)
+    })
+  }, 500)
+})
+
+// 检查是否有记住的用户名
+const savedUsername = localStorage.getItem('username')
+if (savedUsername) {
+  loginForm.username = savedUsername
+  rememberMe.value = true
 }
 </script>
 

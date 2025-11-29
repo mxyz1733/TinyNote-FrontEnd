@@ -77,127 +77,113 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { userAPI } from '../api/user.js'
 
-export default {
-  name: 'Register',
-  setup() {
-    const router = useRouter()
-    const registerFormRef = ref()
-    const loading = ref(false)
-    const agreed = ref(false)
+// 响应式数据
+const router = useRouter()
+const registerFormRef = ref()
+const loading = ref(false)
+const agreed = ref(false)
+
+const registerForm = reactive({
+  username: '',
+  email: '',
+  password: '',
+  confirmPassword: ''
+})
+
+const rules = {
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { min: 3, max: 20, message: '长度在 3 到 20 个字符', trigger: 'blur' }
+  ],
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 6, message: '密码长度至少为6位', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请确认密码', trigger: 'blur' },
+    {
+      validator: (rule, value, callback) => {
+        if (value !== registerForm.password) {
+          callback(new Error('两次输入的密码不一致'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
+  ]
+}
+
+const handleRegister = async () => {
+  if (!agreed.value) {
+    ElMessage.warning('请阅读并同意用户协议和隐私政策')
+    return
+  }
+  
+  try {
+    await registerFormRef.value.validate()
+    loading.value = true
     
-    const registerForm = reactive({
-      username: '',
-      email: '',
-      password: '',
-      confirmPassword: ''
+    // 调用注册API
+    const registerResponse = await userAPI.register({
+      username: registerForm.username,
+      email: registerForm.email,
+      password: registerForm.password
     })
     
-    const rules = {
-      username: [
-        { required: true, message: '请输入用户名', trigger: 'blur' },
-        { min: 3, max: 20, message: '长度在 3 到 20 个字符', trigger: 'blur' }
-      ],
-      email: [
-        { required: true, message: '请输入邮箱', trigger: 'blur' },
-        { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
-      ],
-      password: [
-        { required: true, message: '请输入密码', trigger: 'blur' },
-        { min: 6, message: '密码长度至少为6位', trigger: 'blur' }
-      ],
-      confirmPassword: [
-        { required: true, message: '请确认密码', trigger: 'blur' },
-        {
-          validator: (rule, value, callback) => {
-            if (value !== registerForm.password) {
-              callback(new Error('两次输入的密码不一致'))
-            } else {
-              callback()
-            }
-          },
-          trigger: 'blur'
-        }
-      ]
-    }
+    // 注册成功后立即调用登录API获取token和用户信息
+    const loginResponse = await userAPI.login({
+      username: registerForm.username,
+      password: registerForm.password
+    })
     
-    const handleRegister = async () => {
-      if (!agreed.value) {
-        ElMessage.warning('请阅读并同意用户协议和隐私政策')
-        return
+    if (loginResponse.code === 200) {
+      // 保存token和用户信息到localStorage
+      localStorage.setItem('token', loginResponse.data.token)
+      localStorage.setItem('userInfo', JSON.stringify(loginResponse.data.userInfo))
+      
+      // 保存用户昵称到localStorage
+      if (loginResponse.data.userInfo && loginResponse.data.userInfo.nickname) {
+        localStorage.setItem('nickname', loginResponse.data.userInfo.nickname)
+      } else {
+        // 如果没有昵称，使用用户名作为昵称
+        localStorage.setItem('nickname', registerForm.username)
       }
       
-      try {
-        await registerFormRef.value.validate()
-        loading.value = true
-        
-        // 调用注册API
-        const registerResponse = await userAPI.register({
-          username: registerForm.username,
-          email: registerForm.email,
-          password: registerForm.password
-        })
-        
-        // 注册成功后立即调用登录API获取token和用户信息
-        const loginResponse = await userAPI.login({
-          username: registerForm.username,
-          password: registerForm.password
-        })
-        
-        if (loginResponse.code === 200) {
-          // 保存token和用户信息到localStorage
-          localStorage.setItem('token', loginResponse.data.token)
-          localStorage.setItem('userInfo', JSON.stringify(loginResponse.data.userInfo))
-          
-          // 保存用户昵称到localStorage
-          if (loginResponse.data.userInfo && loginResponse.data.userInfo.nickname) {
-            localStorage.setItem('nickname', loginResponse.data.userInfo.nickname)
-          } else {
-            // 如果没有昵称，使用用户名作为昵称
-            localStorage.setItem('nickname', registerForm.username)
-          }
-          
-          // 保存头像URL到localStorage
-          if (loginResponse.data.userInfo && loginResponse.data.userInfo.avatar) {
-            localStorage.setItem('avatarUrl', loginResponse.data.userInfo.avatar)
-          }
-          
-          // 注册成功提示
-          ElMessage.success('注册成功，正在跳转到工作区...')
-          
-          // 延迟跳转到工作区页面
-          setTimeout(() => {
-            router.push('/workspace')
-          }, 1000)
-        }
-        loading.value = false
-        
-      } catch (error) {
-        console.error('注册失败', error)
-        ElMessage.error('注册失败，请稍后重试')
-        loading.value = false
+      // 保存头像URL到localStorage
+      if (loginResponse.data.userInfo && loginResponse.data.userInfo.avatar) {
+        localStorage.setItem('avatarUrl', loginResponse.data.userInfo.avatar)
       }
+      
+      // 注册成功提示
+      ElMessage.success('注册成功，正在跳转到工作区...')
+      
+      // 延迟跳转到工作区页面
+      setTimeout(() => {
+        router.push('/workspace')
+      }, 1000)
     }
+    loading.value = false
     
-    const goToLogin = () => {
-      router.push('/login')
-    }
-    
-    return {
-      registerFormRef,
-      registerForm,
-      rules,
-      loading,
-      agreed,
-      handleRegister,
-      goToLogin
-    }
+  } catch (error) {
+    console.error('注册失败', error)
+    ElMessage.error('注册失败，请稍后重试')
+    loading.value = false
   }
+}
+
+const goToLogin = () => {
+  router.push('/login')
 }
 </script>
 

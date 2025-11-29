@@ -133,7 +133,7 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -141,306 +141,262 @@ import { noteAPI } from '../api/note.js'
 import { User, ArrowDown, Plus, Refresh, Setting, SwitchButton, Delete, Search, Clock, DocumentCopy } from '@element-plus/icons-vue'
 import { marked } from 'marked'
 
-export default {
-  name: 'Home',
-  components: {
-    Plus,
-    User,
-    ArrowDown,
-    Refresh,
-    Setting,
-    SwitchButton,
-    Search,
-    Delete,
-    Clock,
-    DocumentCopy
-  },
-  setup() {
-    const router = useRouter()
-    const username = ref('')
-    const avatarUrl = ref('')
-    const notes = ref([])
-    const searchKeyword = ref('')
-    const sortType = ref('time')
-    const dialogVisible = ref(false)
-    const previewNote = ref({ title: '', content: '', id: null })
-    const renderedContent = ref('')
+// 响应式数据
+const router = useRouter()
+const username = ref('')
+const avatarUrl = ref('')
+const notes = ref([])
+const searchKeyword = ref('')
+const sortType = ref('time')
+const dialogVisible = ref(false)
+const previewNote = ref({ title: '', content: '', id: null })
+const renderedContent = ref('')
+const loading = ref(false)
+
+// 从API加载笔记列表
+const loadNotes = async () => {
+  loading.value = true
+  
+  try {
+    // 获取当前登录用户信息
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    const userId = userInfo.id
     
-    // 从API加载笔记列表
-    const loading = ref(false)
-    const loadNotes = async () => {
-      loading.value = true
-      
-      try {
-        // 获取当前登录用户信息
-        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-        const userId = userInfo.id
-        
-        if (!userId) {
-          ElMessage.error('用户信息不存在，请重新登录')
-          router.push('/login')
-          return
-        }
-        
-        // 调用API获取用户的笔记列表
-        const response = await noteAPI.getUserNotesByType(userId, 1) // 根据类型获取笔记
-        
-        if (response.code === 200) {
-          // 处理API返回的数据
-          notes.value = response.data || []
-        } else {
-          ElMessage.error(response.message || '获取笔记列表失败')
-          notes.value = []
-        }
-      } catch (error) {
-        console.error('加载笔记列表失败:', error)
-        ElMessage.error('加载失败，请稍后重试')
-        notes.value = []
-      } finally {
-        loading.value = false
-      }
-    }
-    
-    // 过滤后的笔记列表
-    const filteredNotes = computed(() => {
-      let result = [...notes.value]
-      
-      // 搜索过滤
-      if (searchKeyword.value) {
-        const keyword = searchKeyword.value.toLowerCase()
-        result = result.filter(note => 
-          note.title.toLowerCase().includes(keyword) || 
-          note.content.toLowerCase().includes(keyword)
-        )
-      }
-      
-      // 排序
-      if (sortType.value === 'time') {
-        result.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-      } else if (sortType.value === 'title') {
-        result.sort((a, b) => a.title.localeCompare(b.title))
-      }
-      
-      return result
-    })
-    
-    // 创建新笔记
-    const createNote = () => {
-      router.push('/note/edit')
-    }
-    
-    // 编辑笔记
-    const editNote = (id) => {
-      router.push(`/note/edit/${id}`)
-    }
-    
-    // 查看笔记详情
-    const viewNote = (note) => {
-      previewNote.value = { ...note }
-      renderedContent.value = marked(note.content)
-      dialogVisible.value = true
-    }
-    
-    // 关闭预览弹窗
-    const handleClose = () => {
-      dialogVisible.value = false
-    }
-    
-    // 复制笔记内容
-    const copyContent = () => {
-      // 创建临时元素来获取纯文本内容
-      const tempElement = document.createElement('div')
-      tempElement.innerHTML = renderedContent.value
-      const textToCopy = tempElement.textContent || tempElement.innerText || ''
-      
-      // 复制到剪贴板
-      navigator.clipboard.writeText(textToCopy)
-        .then(() => {
-          ElMessage.success('内容已复制到剪贴板')
-        })
-        .catch(err => {
-          console.error('复制失败:', err)
-          ElMessage.error('复制失败，请手动复制')
-        })
-    }
-    
-    // 删除笔记
-    const deleteNote = (id) => {
-      ElMessageBox.confirm('确定要删除这篇笔记吗？此操作不可恢复。', '警告', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }).then(async () => {
-        try {
-          // 获取用户信息
-          const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-          const userId = userInfo.id
-          
-          // 调用API删除笔记
-          const response = await noteAPI.deleteNote(id, userId)
-          
-          if (response.code === 200) {
-            notes.value = notes.value.filter(note => note.id !== id)
-            ElMessage.success('笔记已删除')
-          } else {
-            ElMessage.error(response.message || '删除笔记失败')
-          }
-        } catch (error) {
-          console.error('删除笔记失败:', error)
-          ElMessage.error('删除失败，请稍后重试')
-        }
-      }).catch(() => {})
-    }
-    
-    // 刷新笔记
-    const refreshNotes = () => {
-      loadNotes()
-      ElMessage.success('笔记已刷新')
-    }
-    
-    // 处理搜索
-    const handleSearch = () => {
-      // 搜索逻辑已包含在computed中
-    }
-    
-    // 排序
-    const sortNotes = (type) => {
-      sortType.value = type
-    }
-    
-    // 选项卡变化处理
-     const handleSortChange = (command) => {
-       sortNotes(command)
-     }
-    
-    // 获取笔记预览
-    const getPreview = (content) => {
-      // 去除Markdown标记，截取前100个字符作为预览
-      const plainText = content.replace(/#+ |[*_`~]|\[.*?\]\(.*?\)|\n/g, '')
-      return plainText.length > 100 ? plainText.substring(0, 100) + '...' : plainText
-    }
-    
-    // 格式化日期
-    const formatDate = (dateString) => {
-      const date = new Date(dateString)
-      const now = new Date()
-      const diff = now - date
-      
-      // 小于1分钟
-      if (diff < 60000) {
-        return '刚刚'
-      }
-      // 小于1小时
-      if (diff < 3600000) {
-        return Math.floor(diff / 60000) + '分钟前'
-      }
-      // 小于1天
-      if (diff < 86400000) {
-        return Math.floor(diff / 3600000) + '小时前'
-      }
-      // 小于30天
-      if (diff < 2592000000) {
-        return Math.floor(diff / 86400000) + '天前'
-      }
-      // 大于30天
-      return date.toLocaleDateString()
-    }
-    
-    // 获取头像文本（用户名首字母）
-    const getAvatarText = computed(() => {
-      if (!username.value) return '用'
-      return username.value.charAt(0).toUpperCase()
-    })
-    
-    const handleLogout = () => {
-      // 清除token和用户信息
-      localStorage.removeItem('token')
-      localStorage.removeItem('userInfo')
-      localStorage.removeItem('username')
-      localStorage.removeItem('avatarUrl')
-      ElMessage.success('退出登录成功')
-      // 跳转到登录页
+    if (!userId) {
+      ElMessage.error('用户信息不存在，请重新登录')
       router.push('/login')
+      return
     }
     
-    const goToProfile = () => {
-      router.push('/settings')
-    }
+    // 调用API获取用户的笔记列表
+    const response = await noteAPI.getUserNotesByType(userId, 1) // 根据类型获取笔记
     
-    const refreshAvatarFromLocal = () => {
-      const saved = localStorage.getItem('avatarUrl') || ''
-      if (saved && saved !== avatarUrl.value) {
-        avatarUrl.value = saved
-      }
+    if (response.code === 200) {
+      // 处理API返回的数据
+      notes.value = response.data || []
+    } else {
+      ElMessage.error(response.message || '获取笔记列表失败')
+      notes.value = []
     }
-
-    onMounted(() => {
-      // 优先获取保存的昵称，如果没有则获取用户名
-      const savedNickname = localStorage.getItem('nickname')
-      if (savedNickname) {
-        username.value = savedNickname
-      } else {
-        const savedUsername = localStorage.getItem('username')
-        if (savedUsername) {
-          username.value = savedUsername
-        }
-      }
-      
-      // 立即从localStorage加载头像URL
-      avatarUrl.value = localStorage.getItem('avatarUrl') || ''
-      
-      // 检查是否已登录
-      const token = localStorage.getItem('token')
-      if (!token) {
-        ElMessage.warning('请先登录')
-        router.push('/login')
-      } else {
-        // 加载笔记数据
-        loadNotes()
-      }
-
-      // 在窗口聚焦或页面可见时刷新头像
-      window.addEventListener('focus', refreshAvatarFromLocal)
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-          refreshAvatarFromLocal()
-        }
-      })
-    })
-
-    onUnmounted(() => {
-      window.removeEventListener('focus', refreshAvatarFromLocal)
-    })
-    
-    return {
-      username,
-      avatarUrl,
-      getAvatarText,
-      notes,
-      filteredNotes,
-      searchKeyword,
-      sortType,
-      dialogVisible,
-      previewNote,
-      renderedContent,
-      loading,
-      createNote,
-      editNote,
-      viewNote,
-      deleteNote,
-      refreshNotes,
-      handleSearch,
-      sortNotes,
-      handleSortChange,
-      handleClose,
-      copyContent,
-      getPreview,
-      formatDate,
-      handleLogout,
-      goToProfile
-    }
+  } catch (error) {
+    console.error('加载笔记列表失败:', error)
+    ElMessage.error('加载失败，请稍后重试')
+    notes.value = []
+  } finally {
+    loading.value = false
   }
 }
+
+// 过滤后的笔记列表
+const filteredNotes = computed(() => {
+  let result = [...notes.value]
+  
+  // 搜索过滤
+  if (searchKeyword.value) {
+    const keyword = searchKeyword.value.toLowerCase()
+    result = result.filter(note => 
+      note.title.toLowerCase().includes(keyword) || 
+      note.content.toLowerCase().includes(keyword)
+    )
+  }
+  
+  // 排序
+  if (sortType.value === 'time') {
+    result.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+  } else if (sortType.value === 'title') {
+    result.sort((a, b) => a.title.localeCompare(b.title))
+  }
+  
+  return result
+})
+
+// 创建新笔记
+const createNote = () => {
+  router.push('/note/edit')
+}
+
+// 编辑笔记
+const editNote = (id) => {
+  router.push(`/note/edit/${id}`)
+}
+
+// 查看笔记详情
+const viewNote = (note) => {
+  previewNote.value = { ...note }
+  renderedContent.value = marked(note.content)
+  dialogVisible.value = true
+}
+
+// 关闭预览弹窗
+const handleClose = () => {
+  dialogVisible.value = false
+}
+
+// 复制笔记内容
+const copyContent = () => {
+  // 创建临时元素来获取纯文本内容
+  const tempElement = document.createElement('div')
+  tempElement.innerHTML = renderedContent.value
+  const textToCopy = tempElement.textContent || tempElement.innerText || ''
+  
+  // 复制到剪贴板
+  navigator.clipboard.writeText(textToCopy)
+    .then(() => {
+      ElMessage.success('内容已复制到剪贴板')
+    })
+    .catch(err => {
+      console.error('复制失败:', err)
+      ElMessage.error('复制失败，请手动复制')
+    })
+}
+
+// 删除笔记
+const deleteNote = (id) => {
+  ElMessageBox.confirm('确定要删除这篇笔记吗？此操作不可恢复。', '警告', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      // 获取用户信息
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      const userId = userInfo.id
+      
+      // 调用API删除笔记
+      const response = await noteAPI.deleteNote(id, userId)
+      
+      if (response.code === 200) {
+        notes.value = notes.value.filter(note => note.id !== id)
+        ElMessage.success('笔记已删除')
+      } else {
+        ElMessage.error(response.message || '删除笔记失败')
+      }
+    } catch (error) {
+      console.error('删除笔记失败:', error)
+      ElMessage.error('删除失败，请稍后重试')
+    }
+  }).catch(() => {})
+}
+
+// 刷新笔记
+const refreshNotes = () => {
+  loadNotes()
+  ElMessage.success('笔记已刷新')
+}
+
+// 处理搜索
+const handleSearch = () => {
+  // 搜索逻辑已包含在computed中
+}
+
+// 排序
+const sortNotes = (type) => {
+  sortType.value = type
+}
+
+// 选项卡变化处理
+const handleSortChange = (command) => {
+  sortNotes(command)
+}
+
+// 获取笔记预览
+const getPreview = (content) => {
+  // 去除Markdown标记，截取前100个字符作为预览
+  const plainText = content.replace(/#+ |[*_`~]|\[.*?\]\(.*?\)|\n/g, '')
+  return plainText.length > 100 ? plainText.substring(0, 100) + '...' : plainText
+}
+
+// 格式化日期
+const formatDate = (dateString) => {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diff = now - date
+  
+  // 小于1分钟
+  if (diff < 60000) {
+    return '刚刚'
+  }
+  // 小于1小时
+  if (diff < 3600000) {
+    return Math.floor(diff / 60000) + '分钟前'
+  }
+  // 小于1天
+  if (diff < 86400000) {
+    return Math.floor(diff / 3600000) + '小时前'
+  }
+  // 小于30天
+  if (diff < 2592000000) {
+    return Math.floor(diff / 86400000) + '天前'
+  }
+  // 大于30天
+  return date.toLocaleDateString()
+}
+
+// 获取头像文本（用户名首字母）
+const getAvatarText = computed(() => {
+  if (!username.value) return '用'
+  return username.value.charAt(0).toUpperCase()
+})
+
+const handleLogout = () => {
+  // 清除token和用户信息
+  localStorage.removeItem('token')
+  localStorage.removeItem('userInfo')
+  localStorage.removeItem('username')
+  localStorage.removeItem('avatarUrl')
+  ElMessage.success('退出登录成功')
+  // 跳转到登录页
+  router.push('/login')
+}
+
+const goToProfile = () => {
+  router.push('/settings')
+}
+
+const refreshAvatarFromLocal = () => {
+  const saved = localStorage.getItem('avatarUrl') || ''
+  if (saved && saved !== avatarUrl.value) {
+    avatarUrl.value = saved
+  }
+}
+
+onMounted(() => {
+  // 优先获取保存的昵称，如果没有则获取用户名
+  const savedNickname = localStorage.getItem('nickname')
+  if (savedNickname) {
+    username.value = savedNickname
+  } else {
+    const savedUsername = localStorage.getItem('username')
+    if (savedUsername) {
+      username.value = savedUsername
+    }
+  }
+  
+  // 立即从localStorage加载头像URL
+  avatarUrl.value = localStorage.getItem('avatarUrl') || ''
+  
+  // 检查是否已登录
+  const token = localStorage.getItem('token')
+  if (!token) {
+    ElMessage.warning('请先登录')
+    router.push('/login')
+  } else {
+    // 加载笔记数据
+    loadNotes()
+  }
+
+  // 在窗口聚焦或页面可见时刷新头像
+  window.addEventListener('focus', refreshAvatarFromLocal)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      refreshAvatarFromLocal()
+    }
+  })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('focus', refreshAvatarFromLocal)
+})
 </script>
 
 <style scoped>

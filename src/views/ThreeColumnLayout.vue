@@ -12,7 +12,7 @@
         <el-input
           v-model="searchKeyword"
           placeholder="搜索笔记标题或内容"
-          :prefix-icon="Search"
+          :prefix-icon="SearchIcon"
           clearable
           class="search-input"
           :disabled="sidebarCollapsed"
@@ -174,8 +174,8 @@
   </div>
 </template>
 
-<script>
-import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+<script setup>
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
@@ -191,873 +191,829 @@ import { noteAPI } from '../api/note.js'
 import { userAPI } from '../api/user.js'
 import request from '../api/axios.js'
 
-export default {
-  name: 'ThreeColumnLayout',
-  components: {
-    MarkdownEditor,
-    AIChatWindow,
-    User,
-    ArrowDown,
-    Plus,
-    Refresh,
-    Setting,
-    SwitchButton,
-    Delete,
-    Search: SearchIcon,
-    Menu,
-    Document,
-    AiOutline
-  },
-  setup() {
-    // 工具：将后端可能返回的相对路径统一转换为绝对URL
-    const apiOrigin = new URL(request.defaults.baseURL).origin
-    const toAbsoluteUrl = (url) => {
-      if (!url) return ''
-      if (/^https?:\/\//i.test(url)) return url
-      return `${apiOrigin}${url.startsWith('/') ? url : '/' + url}`
-    }
-    const router = useRouter()
-    const username = ref('')
-    const avatarUrl = ref('')
-    
-    // 侧边栏宽度
-    const leftSidebarWidth = ref('300px')
-    const rightSidebarWidth = ref('350px')
-    const isResizing = ref(false)
-    const resizingType = ref('')
-    const startX = ref(0)
-    const startWidth = ref(0)
+const router = useRouter()
+// 工具：将后端可能返回的相对路径统一转换为绝对URL
+const apiOrigin = new URL(request.defaults.baseURL).origin
+const toAbsoluteUrl = (url) => {
+  if (!url) return ''
+  if (/^https?:\/\//i.test(url)) return url
+  return `${apiOrigin}${url.startsWith('/') ? url : '/' + url}`
+}
+const username = ref('')
+const avatarUrl = ref('')
 
-    // AI助手控制按钮相关变量
-    const showAIButton = ref(true) // 仅在workspace界面显示
-    const aiSidebarVisible = ref(true) // AI助手侧边栏显示状态
-    const isDragging = ref(false) // 是否正在拖动
-    const dragOffset = ref({ x: 0, y: 0 }) // 拖动偏移量
-    
-    // 开始调整大小
-    const startResizing = (type, event) => {
-      isResizing.value = true
-      resizingType.value = type
-      startX.value = event.clientX
-      document.body.classList.add('resizing')
-      
-      if (type === 'left') {
-        startWidth.value = parseInt(leftSidebarWidth.value)
-      } else {
-        startWidth.value = parseInt(rightSidebarWidth.value)
-      }
-      
-      document.addEventListener('mousemove', handleResize)
-      document.addEventListener('mouseup', stopResizing)
-    }
-    
-    // 处理调整大小
-    const handleResize = (event) => {
-      if (!isResizing.value) return
-      
-      const containerWidth = document.querySelector('.main-container').offsetWidth
-      
-      if (resizingType.value === 'left') {
-        // 左侧拖动：鼠标向右移动增加宽度，向左移动减少宽度
-        const delta = event.clientX - startX.value
-        const newWidth = startWidth.value + delta
-        // 设置最小宽度和最大宽度限制
-        if (newWidth >= 200 && newWidth <= containerWidth * 0.4) {
-          leftSidebarWidth.value = `${newWidth}px`
-        }
-      } else if (resizingType.value === 'right') {
-        // 右侧拖动：鼠标向左移动增加宽度，向右移动减少宽度
-        const delta = startX.value - event.clientX
-        const newWidth = startWidth.value + delta
-        // 设置最小宽度和最大宽度限制
-        if (newWidth >= 300 && newWidth <= containerWidth * 0.4) {
-          console.log('Right sidebar resizing:', { newWidth, startWidth: startWidth.value, delta })
-          
-          // 更新响应式变量
-          rightSidebarWidth.value = `${newWidth}px`
-          
-          // 直接操作DOM元素，确保宽度变化立即生效
-          const aiSidebar = document.querySelector('.ai-sidebar')
-          if (aiSidebar) {
-            // 移除可能存在的inline !important样式
-            aiSidebar.style.width = ''
-            // 然后设置新宽度
-            aiSidebar.style.width = `${newWidth}px`
-            console.log('AI sidebar width set to:', aiSidebar.style.width)
-          }
-          
-          // 确保.el-aside元素也被更新
-          const asideElement = document.querySelector('.el-aside.ai-sidebar')
-          if (asideElement) {
-            asideElement.style.width = `${newWidth}px`
-            console.log('EL aside width set to:', asideElement.style.width)
-          }
-        }
-      }
-    }
-    
-    // 停止调整大小
-    const stopResizing = () => {
-      isResizing.value = false
-      document.body.classList.remove('resizing')
-      document.removeEventListener('mousemove', handleResize)
-      document.removeEventListener('mouseup', stopResizing)
-    }
-    
-    // AI助手控制按钮拖动相关函数
-    const startDragging = (event) => {
-      // 防止点击事件触发
-      event.stopPropagation()
-      
-      // 计算鼠标相对于按钮左上角的偏移量
-      const buttonRect = event.currentTarget.getBoundingClientRect()
-      dragOffset.value = {
-        x: event.clientX - buttonRect.left,
-        y: event.clientY - buttonRect.top
-      }
-      
-      isDragging.value = true
-      document.addEventListener('mousemove', handleDrag)
-      document.addEventListener('mouseup', stopDragging)
-      
-      // 防止拖动时选中文本
-      document.body.style.userSelect = 'none'
-    }
+// 侧边栏宽度
+const leftSidebarWidth = ref('300px')
+const rightSidebarWidth = ref('350px')
+const isResizing = ref(false)
+const resizingType = ref('')
+const startX = ref(0)
+const startWidth = ref(0)
 
-    const stopDragging = () => {
-      isDragging.value = false
-      document.removeEventListener('mousemove', handleDrag)
-      document.removeEventListener('mouseup', stopDragging)
-      document.body.style.userSelect = ''
-    }
-    
-    // 切换AI助手侧边栏显示状态
-    const toggleAISidebar = () => {
-      if (isDragging.value) return
-      
-      aiSidebarVisible.value = !aiSidebarVisible.value
-      
-      // 可以在这里添加额外的逻辑，比如保存状态到localStorage
-      localStorage.setItem('aiSidebarVisible', aiSidebarVisible.value.toString())
-      
-      // 调试信息：输出切换状态
-      console.log('AI sidebar toggled:', aiSidebarVisible.value)
-    }
-    const notes = ref([])
-    const searchKeyword = ref('')
-    const sortType = ref('time')
-    const currentNote = ref(null)
-    const contentChanged = ref(false)
-    const saving = ref(false)
-    const sidebarCollapsed = ref(false)
-    const mdInputRef = ref(null)
-    
-    // 返回页面时或窗口聚焦时，同步最新头像
-    const refreshAvatarFromLocal = () => {
-      const saved = localStorage.getItem('avatarUrl') || ''
-      if (saved && saved !== avatarUrl.value) {
-        avatarUrl.value = saved
-      }
-    }
-    
-    // 获取头像文本（用户名首字母）
-    const getAvatarText = computed(() => {
-      if (!username.value) return '用'
-      return username.value.charAt(0).toUpperCase()
-    })
-    
-    // 从后端API加载笔记数据
-    const loadNotes = async () => {
-      try {
-        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-        const userId = userInfo.id
-        
-        if (!userId) {
-          ElMessage.warning('请先登录')
-          router.push('/login')
-          return
-        }
-        
-        console.log('开始加载用户笔记，用户ID:', userId)
-        const response = await noteAPI.getUserNotes(userId, 1, 100)
-        
-        console.log('笔记加载响应:', response)
-        
-        // 处理不同格式的响应
-        if (response.code === 200 || response.success === true || response.ok === true) {
-          // 尝试多种可能的数据结构
-          let notesData = []
-          if (response.data?.records && Array.isArray(response.data.records)) {
-            notesData = response.data.records
-          } else if (Array.isArray(response.data)) {
-            notesData = response.data
-          } else if (Array.isArray(response)) {
-            notesData = response
-          }
-          
-          // 将后端数据转换为前端格式
-          notes.value = notesData.map(note => ({
-            id: note.id || note.noteId,
-            title: note.title || '无标题',
-            content: note.content || '',
-            updatedAt: note.updateTime || note.updatedAt || new Date().toISOString(),
-            createdAt: note.createTime || note.createdAt || new Date().toISOString(),
-            userId: note.userId || userId
-          }))
-          
-          console.log('笔记加载成功，共加载:', notes.value.length, '条笔记')
-        } else {
-          const errorMsg = response.message || response.msg || '加载笔记失败'
-          console.error('加载笔记失败:', errorMsg)
-          ElMessage.error(errorMsg)
-          notes.value = []
-        }
-      } catch (error) {
-        console.error('加载笔记异常:', error)
-        ElMessage.error('加载失败，请检查网络连接或后端服务')
-        notes.value = []
-      }
-    }
+// AI助手控制按钮相关变量
+const showAIButton = ref(true) // 仅在workspace界面显示
+const aiSidebarVisible = ref(true) // AI助手侧边栏显示状态
+const isDragging = ref(false) // 是否正在拖动
+const dragOffset = ref({ x: 0, y: 0 }) // 拖动偏移量
+const buttonPosition = ref({ x: 80, y: 200 }) // 按钮位置，默认在屏幕右侧中间位置
 
-    // 触发选择Markdown文件
-    const triggerImportMd = () => {
-      mdInputRef.value && mdInputRef.value.click()
-    }
+// 开始调整大小
+const startResizing = (type, event) => {
+  isResizing.value = true
+  resizingType.value = type
+  startX.value = event.clientX
+  document.body.classList.add('resizing')
+  
+  if (type === 'left') {
+    startWidth.value = parseInt(leftSidebarWidth.value)
+  } else {
+    startWidth.value = parseInt(rightSidebarWidth.value)
+  }
+  
+  document.addEventListener('mousemove', handleResize)
+  document.addEventListener('mouseup', stopResizing)
+}
 
-    // 处理Markdown文件导入
-    const handleImportMd = async (e) => {
-      try {
-        const files = Array.from(e.target.files || [])
-        if (!files.length) return
-        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-        const userId = userInfo.id
-        if (!userId) {
-          ElMessage.error('用户信息不存在，请重新登录')
-          router.push('/login')
-          return
-        }
-        let ok = 0
-        for (const file of files) {
-          if (!/\.md$/i.test(file.name) && file.type !== 'text/markdown') {
-            continue
-          }
-          const text = await file.text()
-          const title = (file.name.replace(/\.[^/.]+$/, '') || '导入的笔记').slice(0, 100)
-          const noteData = { title, content: text, userId, type: 1, isMarkdown: 1 }
-          const res = await noteAPI.createNote(noteData)
-          if (res && res.code === 200) ok++
-        }
-        if (mdInputRef.value) mdInputRef.value.value = ''
-        if (ok > 0) {
-          ElMessage.success(`成功导入 ${ok} 个Markdown文件`)
-          await loadNotes()
-          if (notes.value.length > 0) {
-            currentNote.value = { ...notes.value[0] }
-          }
-        } else {
-          ElMessage.error('未导入任何Markdown文件')
-        }
-      } catch (err) {
-        console.error('导入Markdown失败:', err)
-        ElMessage.error('导入失败')
+// 处理调整大小
+const handleResize = (event) => {
+  if (!isResizing.value) return
+  
+  const containerWidth = document.querySelector('.main-container').offsetWidth
+  
+  if (resizingType.value === 'left') {
+    // 左侧拖动：鼠标向右移动增加宽度，向左移动减少宽度
+    const delta = event.clientX - startX.value
+    const newWidth = startWidth.value + delta
+    // 设置最小宽度和最大宽度限制
+    if (newWidth >= 200 && newWidth <= containerWidth * 0.4) {
+      leftSidebarWidth.value = `${newWidth}px`
+    }
+  } else if (resizingType.value === 'right') {
+    // 右侧拖动：鼠标向左移动增加宽度，向右移动减少宽度
+    const delta = startX.value - event.clientX
+    const newWidth = startWidth.value + delta
+    // 设置最小宽度和最大宽度限制
+    if (newWidth >= 300 && newWidth <= containerWidth * 0.4) {
+      console.log('Right sidebar resizing:', { newWidth, startWidth: startWidth.value, delta })
+      
+      // 更新响应式变量
+      rightSidebarWidth.value = `${newWidth}px`
+      
+      // 直接操作DOM元素，确保宽度变化立即生效
+      const aiSidebar = document.querySelector('.ai-sidebar')
+      if (aiSidebar) {
+        // 移除可能存在的inline !important样式
+        aiSidebar.style.width = ''
+        // 然后设置新宽度
+        aiSidebar.style.width = `${newWidth}px`
+        console.log('AI sidebar width set to:', aiSidebar.style.width)
+      }
+      
+      // 确保.el-aside元素也被更新
+      const asideElement = document.querySelector('.el-aside.ai-sidebar')
+      if (asideElement) {
+        asideElement.style.width = `${newWidth}px`
+        console.log('EL aside width set to:', asideElement.style.width)
       }
     }
-    
-    // 过滤后的笔记列表
-    const filteredNotes = computed(() => {
-      let result = [...notes.value]
-      
-      // 搜索过滤
-      if (searchKeyword.value) {
-        const keyword = searchKeyword.value.toLowerCase()
-        result = result.filter(note => 
-          note.title.toLowerCase().includes(keyword) || 
-          note.content.toLowerCase().includes(keyword)
-        )
-      }
-      
-      // 排序
-      if (sortType.value === 'time') {
-        result.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-      } else if (sortType.value === 'title') {
-        result.sort((a, b) => a.title.localeCompare(b.title))
-      }
-      
-      return result
-    })
-    
-    // 创建新笔记 - 立即保存到数据库
-    const createNote = async () => {
-      // 创建基础笔记对象（不设置临时ID）
-      const newNote = {
-        title: '新笔记',
-        content: '',
-        createdAt: new Date().toISOString(),
-        createTime: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        updateTime: new Date().toISOString()
-      }
-      
-      // 设置为当前笔记
-      currentNote.value = { ...newNote }
-      contentChanged.value = true
-      
-      // 立即调用保存方法写入数据库
-      try {
-        await saveCurrentNote()
-      } catch (error) {
-        console.error('创建笔记失败:', error)
-        ElMessage.error('创建笔记失败，请重试')
-        // 如果保存失败，添加到本地列表以便用户可以继续编辑
-        if (!currentNote.value.id) {
-          currentNote.value.id = Date.now().toString()
-          notes.value.unshift({ ...currentNote.value })
-        }
-      }
-    }
-    
-    // 选择笔记
-    const selectNote = async (note) => {
-      if (currentNote.value && contentChanged.value) {
-        const confirmed = await ElMessageBox.confirm(
-          '当前笔记有未保存的修改，确定要切换到其他笔记吗？', 
-          '提示', 
-          {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning'
-          }
-        ).catch(() => false)
-        
-        if (!confirmed) return
-      }
-      
-      currentNote.value = { ...note }
-      contentChanged.value = false
-    }
-    
-    // 保存笔记
-    const saveCurrentNote = async () => {
-      if (!currentNote.value || !currentNote.value.title.trim()) {
-        ElMessage.warning('请输入笔记标题')
-        return
-      }
+  }
+}
 
-      saving.value = true
-      contentChanged.value = false
-      
-      try {
-        // 获取当前登录用户信息
-        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-        const userId = userInfo.id
-        
-        if (!userId) {
-          ElMessage.error('用户信息不存在，请重新登录')
-          router.push('/login')
-          return
-        }
-        
-        const noteData = {
-          title: currentNote.value.title,
-          content: currentNote.value.content,
-          userId: userId,
-          type: 1, // 默认类型
-          isMarkdown: 0 // 默认不是Markdown
-        }
-        
-        console.log('===== 笔记保存开始 =====')
-        console.log('操作类型:', currentNote.value.id ? '更新笔记' : '创建笔记')
-        console.log('用户ID:', userId)
-        console.log('笔记ID:', currentNote.value.id || '无')
-        console.log('笔记标题:', noteData.title)
-        console.log('笔记内容长度:', noteData.content.length)
-        
-        let response
-        if (currentNote.value.id) {
-          // 更新现有笔记
-          noteData.id = currentNote.value.id
-          console.log('===== 调用updateNote API =====')
-          console.log('完整请求参数:', JSON.stringify(noteData, null, 2))
-          
-          try {
-            // 添加网络请求超时处理
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('API调用超时')), 10000)
-            );
-            
-            response = await Promise.race([
-              noteAPI.updateNote(noteData),
-              timeoutPromise
-            ]);
-            
-            console.log('===== updateNote API响应 =====')
-            console.log('响应状态:', response.code || response.status || '未知')
-            console.log('响应数据类型:', typeof response)
-            console.log('响应数据:', JSON.stringify(response, null, 2))
-          } catch (apiError) {
-            console.error('===== updateNote API调用失败详情 =====')
-            console.error('错误对象类型:', typeof apiError)
-            console.error('错误消息:', apiError.message)
-            console.error('错误堆栈:', apiError.stack)
-            
-            // 提取详细错误信息
-                    if (apiError.response) {
-                        console.error('HTTP状态:', apiError.response.status)
-                        console.error('响应头:', apiError.response.headers)
-                        console.error('响应数据:', JSON.stringify(apiError.response.data, null, 2))
-                        throw new Error(`更新失败: HTTP ${apiError.response.status} - ${apiError.response.data?.message || apiError.response.data?.error || '服务器错误'}`)
-                    } else if (apiError.responseData) {
-                        // 处理从axios拦截器传递的包含完整响应数据的错误
-                        console.error('业务响应数据:', JSON.stringify(apiError.responseData, null, 2))
-                        throw new Error(`更新失败: ${apiError.message}`)
-                    } else if (apiError.request) {
-                        console.error('请求信息:', apiError.request)
-                        throw new Error(`更新失败: 网络请求失败 - ${apiError.message}`)
-                    } else {
-                        throw new Error(`更新失败: ${apiError.message || '未知错误'}`)
-                    }
-          }
-        } else {
-          // 创建新笔记
-          console.log('===== 调用createNote API =====')
-          console.log('完整请求参数:', JSON.stringify(noteData, null, 2))
-          
-          try {
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('API调用超时')), 10000)
-            );
-            
-            response = await Promise.race([
-              noteAPI.createNote(noteData),
-              timeoutPromise
-            ]);
-            
-            console.log('===== createNote API响应 =====')
-            console.log('响应状态:', response.code || response.status || '未知')
-            console.log('响应数据类型:', typeof response)
-            console.log('响应数据:', JSON.stringify(response, null, 2))
-          } catch (apiError) {
-            console.error('===== createNote API调用失败详情 =====')
-            console.error('错误对象类型:', typeof apiError)
-            console.error('错误消息:', apiError.message)
-            console.error('错误堆栈:', apiError.stack)
-            
-            if (apiError.response) {
-              console.error('HTTP状态:', apiError.response.status)
-              console.error('响应头:', apiError.response.headers)
-              console.error('响应数据:', JSON.stringify(apiError.response.data, null, 2))
-              throw new Error(`创建失败: HTTP ${apiError.response.status} - ${apiError.response.data?.message || apiError.response.data?.error || '服务器错误'}`)
-            } else if (apiError.responseData) {
-              // 处理从axios拦截器传递的包含完整响应数据的错误
-              console.error('业务响应数据:', JSON.stringify(apiError.responseData, null, 2))
-              throw new Error(`创建失败: ${apiError.message}`)
-            } else if (apiError.request) {
-              console.error('请求信息:', apiError.request)
-              throw new Error(`创建失败: 网络请求失败 - ${apiError.message}`)
-            } else {
-              throw new Error(`创建失败: ${apiError.message || '未知错误'}`)
-            }
-          }
-        }
-        
-        // 处理不同格式的响应
-        console.log('===== 处理响应 =====')
-        const isSuccess = response.code === 200 || response.success === true || response.ok === true
-        console.log('响应是否成功:', isSuccess)
-        
-        // 检查响应是否是Result格式对象（包含code, message, data三个字段）
-        const isResultFormat = response && typeof response === 'object' && 
-                             'code' in response && 'message' in response && 'data' in response
-        
-        if (isResultFormat) {
-          // Result格式响应处理
-          console.log('===== Result格式响应处理 =====')
-          console.log('响应code:', response.code)
-          console.log('响应message:', response.message)
-          
-          if (response.code === 200) {
-            // 刷新笔记列表
-            console.log('===== 刷新笔记列表 =====')
-            await loadNotes()
-            
-            // 如果是新创建的笔记，更新当前笔记的ID
-            if (!currentNote.value.id && response.data && (response.data.id || response.data.id === 0)) {
-              currentNote.value.id = response.data.id
-              console.log('新笔记ID:', currentNote.value.id)
-            }
-            
-            ElMessage.success(currentNote.value.id ? '笔记更新成功' : '笔记创建成功')
-          } else {
-            const errorMsg = response.message || '保存失败'
-            console.error('保存失败:', errorMsg)
-            ElMessage.error(errorMsg)
-            contentChanged.value = true
-          }
-        } else {
-          // 兼容其他响应格式
-          console.log('===== 兼容模式响应处理 =====')
-          
-          const isSuccess = response.code === 200 || response.success === true || response.ok === true
-          
-          if (isSuccess) {
-            // 刷新笔记列表
-            console.log('===== 刷新笔记列表 =====')
-            await loadNotes()
-            
-            // 如果是新创建的笔记，更新当前笔记的ID
-            if (!currentNote.value.id && (response.data?.id || response.id || response.data?.id === 0)) {
-              currentNote.value.id = response.data?.id || response.id
-              console.log('新笔记ID:', currentNote.value.id)
-            }
-            
-            ElMessage.success(currentNote.value.id ? '笔记更新成功' : '笔记创建成功')
-          } else {
-            const errorMsg = response.message || response.msg || '保存失败'
-            console.error('保存失败:', errorMsg)
-            ElMessage.error(errorMsg)
-            contentChanged.value = true
-          }
-        }
-      } catch (error) {
-        console.error('===== 保存笔记异常（详细）=====')
-        console.error('错误消息:', error.message)
-        console.error('错误堆栈:', error.stack)
-        ElMessage.error(error.message || '保存失败，请稍后重试')
-        contentChanged.value = true
-        saving.value = false
-      } finally {
-        saving.value = false
-      }
+// 停止调整大小
+const stopResizing = () => {
+  isResizing.value = false
+  document.body.classList.remove('resizing')
+  document.removeEventListener('mousemove', handleResize)
+  document.removeEventListener('mouseup', stopResizing)
+}
+
+// AI助手控制按钮拖动相关函数
+const startDragging = (event) => {
+  // 防止点击事件触发
+  event.stopPropagation()
+  
+  // 计算鼠标相对于按钮左上角的偏移量
+  const buttonRect = event.currentTarget.getBoundingClientRect()
+  dragOffset.value = {
+    x: event.clientX - buttonRect.left,
+    y: event.clientY - buttonRect.top
+  }
+  
+  isDragging.value = true
+  document.addEventListener('mousemove', handleDrag)
+  document.addEventListener('mouseup', stopDragging)
+  
+  // 防止拖动时选中文本
+  document.body.style.userSelect = 'none'
+}
+
+const handleDrag = (event) => {
+  if (!isDragging.value) return
+  
+  // 更新按钮位置，确保不会超出屏幕范围
+  const newX = event.clientX - dragOffset.value.x
+  const newY = event.clientY - dragOffset.value.y
+  
+  // 限制在屏幕范围内
+  const maxX = window.innerWidth - 60 // 60是按钮宽度
+  const maxY = window.innerHeight - 60 // 60是按钮高度
+  
+  buttonPosition.value = {
+    x: Math.max(0, Math.min(maxX, newX)),
+    y: Math.max(0, Math.min(maxY, newY))
+  }
+  
+  // 保存位置到localStorage
+  localStorage.setItem('aiButtonPosition', JSON.stringify(buttonPosition.value))
+}
+
+const stopDragging = () => {
+  isDragging.value = false
+  document.removeEventListener('mousemove', handleDrag)
+  document.removeEventListener('mouseup', stopDragging)
+  document.body.style.userSelect = ''
+}
+
+// 切换AI助手侧边栏显示状态
+const toggleAISidebar = () => {
+  if (isDragging.value) return
+  
+  aiSidebarVisible.value = !aiSidebarVisible.value
+  
+  // 可以在这里添加额外的逻辑，比如保存状态到localStorage
+  localStorage.setItem('aiSidebarVisible', aiSidebarVisible.value.toString())
+  
+  // 调试信息：输出切换状态
+  console.log('AI sidebar toggled:', aiSidebarVisible.value)
+}
+const notes = ref([])
+const searchKeyword = ref('')
+const sortType = ref('time')
+const currentNote = ref(null)
+const contentChanged = ref(false)
+const saving = ref(false)
+const sidebarCollapsed = ref(false)
+const mdInputRef = ref(null)
+
+// 返回页面时或窗口聚焦时，同步最新头像
+const refreshAvatarFromLocal = () => {
+  const saved = localStorage.getItem('avatarUrl') || ''
+  if (saved && saved !== avatarUrl.value) {
+    avatarUrl.value = saved
+  }
+}
+
+// 获取头像文本（用户名首字母）
+const getAvatarText = computed(() => {
+  if (!username.value) return '用'
+  return username.value.charAt(0).toUpperCase()
+})
+
+// 从后端API加载笔记数据
+const loadNotes = async () => {
+  try {
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    const userId = userInfo.id
+    
+    if (!userId) {
+      ElMessage.warning('请先登录')
+      router.push('/login')
+      return
     }
     
-    // 删除笔记
-    const deleteNote = (id) => {
-      ElMessageBox.confirm('确定要删除这篇笔记吗？此操作不可恢复。', '警告', {
+    console.log('开始加载用户笔记，用户ID:', userId)
+    const response = await noteAPI.getUserNotes(userId, 1, 100)
+    
+    console.log('笔记加载响应:', response)
+    
+    // 处理不同格式的响应
+    if (response.code === 200 || response.success === true || response.ok === true) {
+      // 尝试多种可能的数据结构
+      let notesData = []
+      if (response.data?.records && Array.isArray(response.data.records)) {
+        notesData = response.data.records
+      } else if (Array.isArray(response.data)) {
+        notesData = response.data
+      } else if (Array.isArray(response)) {
+        notesData = response
+      }
+      
+      // 将后端数据转换为前端格式
+      notes.value = notesData.map(note => ({
+        id: note.id || note.noteId,
+        title: note.title || '无标题',
+        content: note.content || '',
+        updatedAt: note.updateTime || note.updatedAt || new Date().toISOString(),
+        createdAt: note.createTime || note.createdAt || new Date().toISOString(),
+        userId: note.userId || userId
+      }))
+      
+      console.log('笔记加载成功，共加载:', notes.value.length, '条笔记')
+    } else {
+      const errorMsg = response.message || response.msg || '加载笔记失败'
+      console.error('加载笔记失败:', errorMsg)
+      ElMessage.error(errorMsg)
+      notes.value = []
+    }
+  } catch (error) {
+    console.error('加载笔记异常:', error)
+    ElMessage.error('加载失败，请检查网络连接或后端服务')
+    notes.value = []
+  }
+}
+
+// 触发选择Markdown文件
+const triggerImportMd = () => {
+  mdInputRef.value && mdInputRef.value.click()
+}
+
+// 处理Markdown文件导入
+const handleImportMd = async (e) => {
+  try {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    const userId = userInfo.id
+    if (!userId) {
+      ElMessage.error('用户信息不存在，请重新登录')
+      router.push('/login')
+      return
+    }
+    let ok = 0
+    for (const file of files) {
+      if (!/\.md$/i.test(file.name) && file.type !== 'text/markdown') {
+        continue
+      }
+      const text = await file.text()
+      const title = (file.name.replace(/\.[^/.]+$/, '') || '导入的笔记').slice(0, 100)
+      const noteData = { title, content: text, userId, type: 1, isMarkdown: 1 }
+      const res = await noteAPI.createNote(noteData)
+      if (res && res.code === 200) ok++
+    }
+    if (mdInputRef.value) mdInputRef.value.value = ''
+    if (ok > 0) {
+      ElMessage.success(`成功导入 ${ok} 个Markdown文件`)
+      await loadNotes()
+      if (notes.value.length > 0) {
+        currentNote.value = { ...notes.value[0] }
+      }
+    } else {
+      ElMessage.error('未导入任何Markdown文件')
+    }
+  } catch (err) {
+    console.error('导入Markdown失败:', err)
+    ElMessage.error('导入失败')
+  }
+}
+
+// 过滤后的笔记列表
+const filteredNotes = computed(() => {
+  let result = [...notes.value]
+  
+  // 搜索过滤
+  if (searchKeyword.value) {
+    const keyword = searchKeyword.value.toLowerCase()
+    result = result.filter(note => 
+      note.title.toLowerCase().includes(keyword) || 
+      note.content.toLowerCase().includes(keyword)
+    )
+  }
+  
+  // 排序
+  if (sortType.value === 'time') {
+    result.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+  } else if (sortType.value === 'title') {
+    result.sort((a, b) => a.title.localeCompare(b.title))
+  }
+  
+  return result
+})
+
+// 创建新笔记 - 立即保存到数据库
+const createNote = async () => {
+  // 创建基础笔记对象（不设置临时ID）
+  const newNote = {
+    title: '新笔记',
+    content: '',
+    createdAt: new Date().toISOString(),
+    createTime: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    updateTime: new Date().toISOString()
+  }
+  
+  // 设置为当前笔记
+  currentNote.value = { ...newNote }
+  contentChanged.value = true
+  
+  // 立即调用保存方法写入数据库
+  try {
+    await saveCurrentNote()
+  } catch (error) {
+    console.error('创建笔记失败:', error)
+    ElMessage.error('创建笔记失败，请重试')
+    // 如果保存失败，添加到本地列表以便用户可以继续编辑
+    if (!currentNote.value.id) {
+      currentNote.value.id = Date.now().toString()
+      notes.value.unshift({ ...currentNote.value })
+    }
+  }
+}
+
+// 选择笔记
+const selectNote = async (note) => {
+  if (currentNote.value && contentChanged.value) {
+    const confirmed = await ElMessageBox.confirm(
+      '当前笔记有未保存的修改，确定要切换到其他笔记吗？', 
+      '提示', 
+      {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
-      }).then(async () => {
-        try {
-          const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-          const userId = userInfo.id
-          
-          if (!userId) {
-            ElMessage.error('用户信息不存在，请重新登录')
-            router.push('/login')
-            return
-          }
-          
-          console.log('准备删除笔记，笔记ID:', id, '用户ID:', userId)
-          
-          // 调用API删除笔记
-          const response = await noteAPI.deleteNote(id, userId)
-          
-          console.log('笔记删除响应:', response)
-          
-          // 处理不同格式的响应
-          if (response.code === 200 || response.success === true || response.ok === true) {
-            // 刷新笔记列表
-            await loadNotes()
-            
-            // 如果删除的是当前笔记，清空当前笔记
-            if (currentNote.value && currentNote.value.id === id) {
-              currentNote.value = null
-              contentChanged.value = false
-            }
-            
-            ElMessage.success('笔记已删除')
-          } else {
-            const errorMsg = response.message || response.msg || '删除笔记失败'
-            console.error('删除笔记失败:', errorMsg)
-            ElMessage.error(errorMsg)
-          }
-        } catch (error) {
-          console.error('删除笔记异常:', error)
-          ElMessage.error('删除失败，请检查网络连接或后端服务')
-        }
-      }).catch(() => {})
-    }
-    
-    // 处理内容变化
-    const handleContentChange = () => {
-      contentChanged.value = true
-    }
-    
-    // 处理AI响应
-    const handleAIResponse = (response) => {
-      console.log('收到AI响应:', response)
-      // 这里可以根据需要对AI响应进行处理
-      // 例如：显示通知、更新UI状态等
-    }
-    
-    // 刷新笔记
-    const refreshNotes = () => {
-      loadNotes()
-      // 如果当前有选中的笔记，更新它
-      if (currentNote.value) {
-        const updatedNote = notes.value.find(note => note.id === currentNote.value.id)
-        if (updatedNote && !contentChanged.value) {
-          currentNote.value = { ...updatedNote }
-        }
       }
-      ElMessage.success('笔记已刷新')
-    }
+    ).catch(() => false)
     
-    // 排序处理
-    const handleSortChange = (command) => {
-      sortType.value = command
-    }
+    if (!confirmed) return
+  }
+  
+  currentNote.value = { ...note }
+  contentChanged.value = false
+}
+
+// 保存笔记
+const saveCurrentNote = async () => {
+  if (!currentNote.value || !currentNote.value.title.trim()) {
+    ElMessage.warning('请输入笔记标题')
+    return
+  }
+
+  saving.value = true
+  contentChanged.value = false
+  
+  try {
+    // 获取当前登录用户信息
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    const userId = userInfo.id
     
-    // 获取笔记预览
-    const getPreview = (content) => {
-      // 去除Markdown标记，截取前50个字符作为预览
-      const plainText = content.replace(/#+ |[*_`~]|\\[.*?\\]\\(.*?\\)|\n/g, '')
-      return plainText.length > 50 ? plainText.substring(0, 50) + '...' : plainText
-    }
-    
-    // 格式化日期
-    const formatDate = (dateString) => {
-      const date = new Date(dateString)
-      const now = new Date()
-      const diff = now - date
-      
-      // 小于1分钟
-      if (diff < 60000) {
-        return '刚刚'
-      }
-      // 小于1小时
-      if (diff < 3600000) {
-        return Math.floor(diff / 60000) + '分钟前'
-      }
-      // 小于1天
-      if (diff < 86400000) {
-        return Math.floor(diff / 3600000) + '小时前'
-      }
-      // 小于30天
-      if (diff < 2592000000) {
-        return Math.floor(diff / 86400000) + '天前'
-      }
-      // 大于30天
-      return date.toLocaleDateString()
-    }
-    
-    // 切换侧边栏展开/折叠
-    const toggleSidebar = () => {
-      sidebarCollapsed.value = !sidebarCollapsed.value
-    }
-    
-    // 退出登录
-    const handleLogout = () => {
-      // 清除token和用户相关信息
-      localStorage.removeItem('token')
-      localStorage.removeItem('userInfo')
-      localStorage.removeItem('username')
-      localStorage.removeItem('avatarUrl')
-      localStorage.removeItem('nickname')
-      ElMessage.success('退出登录成功')
-      // 跳转到登录页
+    if (!userId) {
+      ElMessage.error('用户信息不存在，请重新登录')
       router.push('/login')
+      return
     }
     
-    // 跳转到设置页面
-    const goToProfile = () => {
-      console.log('跳转到个人中心');
-      router.push('/settings')
+    const noteData = {
+      title: currentNote.value.title,
+      content: currentNote.value.content,
+      userId: userId,
+      type: 1, // 默认类型
+      isMarkdown: 0 // 默认不是Markdown
     }
     
-    // 页面离开前提示保存
-    const handleBeforeUnload = (event) => {
-      if (contentChanged.value) {
-        event.preventDefault()
-        event.returnValue = '有未保存的修改，确定要离开吗？'
-        return event.returnValue
+    console.log('===== 笔记保存开始 =====')
+    console.log('操作类型:', currentNote.value.id ? '更新笔记' : '创建笔记')
+    console.log('用户ID:', userId)
+    console.log('笔记ID:', currentNote.value.id || '无')
+    console.log('笔记标题:', noteData.title)
+    console.log('笔记内容长度:', noteData.content.length)
+    
+    let response
+    if (currentNote.value.id) {
+      // 更新现有笔记
+      noteData.id = currentNote.value.id
+      console.log('===== 调用updateNote API =====')
+      console.log('完整请求参数:', JSON.stringify(noteData, null, 2))
+      
+      try {
+        // 添加网络请求超时处理
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('API调用超时')), 10000)
+        );
+        
+        response = await Promise.race([
+          noteAPI.updateNote(noteData),
+          timeoutPromise
+        ]);
+        
+        console.log('===== updateNote API响应 =====')
+        console.log('响应状态:', response.code || response.status || '未知')
+        console.log('响应数据类型:', typeof response)
+        console.log('响应数据:', JSON.stringify(response, null, 2))
+      } catch (apiError) {
+        console.error('===== updateNote API调用失败详情 =====')
+        console.error('错误对象类型:', typeof apiError)
+        console.error('错误消息:', apiError.message)
+        console.error('错误堆栈:', apiError.stack)
+        
+        // 提取详细错误信息
+        if (apiError.response) {
+          console.error('HTTP状态:', apiError.response.status)
+          console.error('响应头:', apiError.response.headers)
+          console.error('响应数据:', JSON.stringify(apiError.response.data, null, 2))
+          throw new Error(`更新失败: HTTP ${apiError.response.status} - ${apiError.response.data?.message || apiError.response.data?.error || '服务器错误'}`)
+        } else if (apiError.responseData) {
+          // 处理从axios拦截器传递的包含完整响应数据的错误
+          console.error('业务响应数据:', JSON.stringify(apiError.responseData, null, 2))
+          throw new Error(`更新失败: ${apiError.message}`)
+        } else if (apiError.request) {
+          console.error('请求信息:', apiError.request)
+          throw new Error(`更新失败: 网络请求失败 - ${apiError.message}`)
+        } else {
+          throw new Error(`更新失败: ${apiError.message || '未知错误'}`)
+        }
+      }
+    } else {
+      // 创建新笔记
+      console.log('===== 调用createNote API =====')
+      console.log('完整请求参数:', JSON.stringify(noteData, null, 2))
+      
+      try {
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('API调用超时')), 10000)
+        );
+        
+        response = await Promise.race([
+          noteAPI.createNote(noteData),
+          timeoutPromise
+        ]);
+        
+        console.log('===== createNote API响应 =====')
+        console.log('响应状态:', response.code || response.status || '未知')
+        console.log('响应数据类型:', typeof response)
+        console.log('响应数据:', JSON.stringify(response, null, 2))
+      } catch (apiError) {
+        console.error('===== createNote API调用失败详情 =====')
+        console.error('错误对象类型:', typeof apiError)
+        console.error('错误消息:', apiError.message)
+        console.error('错误堆栈:', apiError.stack)
+        
+        if (apiError.response) {
+          console.error('HTTP状态:', apiError.response.status)
+          console.error('响应头:', apiError.response.headers)
+          console.error('响应数据:', JSON.stringify(apiError.response.data, null, 2))
+          throw new Error(`创建失败: HTTP ${apiError.response.status} - ${apiError.response.data?.message || apiError.response.data?.error || '服务器错误'}`)
+        } else if (apiError.responseData) {
+          // 处理从axios拦截器传递的包含完整响应数据的错误
+          console.error('业务响应数据:', JSON.stringify(apiError.responseData, null, 2))
+          throw new Error(`创建失败: ${apiError.message}`)
+        } else if (apiError.request) {
+          console.error('请求信息:', apiError.request)
+          throw new Error(`创建失败: 网络请求失败 - ${apiError.message}`)
+        } else {
+          throw new Error(`创建失败: ${apiError.message || '未知错误'}`)
+        }
       }
     }
     
-    onMounted(async () => {
-      // 获取用户信息
+    // 处理不同格式的响应
+    console.log('===== 处理响应 =====')
+    const isSuccess = response.code === 200 || response.success === true || response.ok === true
+    console.log('响应是否成功:', isSuccess)
+    
+    // 检查响应是否是Result格式对象（包含code, message, data三个字段）
+    const isResultFormat = response && typeof response === 'object' && 
+                         'code' in response && 'message' in response && 'data' in response
+    
+    if (isResultFormat) {
+      // Result格式响应处理
+      console.log('===== Result格式响应处理 =====')
+      console.log('响应code:', response.code)
+      console.log('响应message:', response.message)
+      
+      if (response.code === 200) {
+        // 刷新笔记列表
+        console.log('===== 刷新笔记列表 =====')
+        await loadNotes()
+        
+        // 如果是新创建的笔记，更新当前笔记的ID
+        if (!currentNote.value.id && response.data && (response.data.id || response.data.id === 0)) {
+          currentNote.value.id = response.data.id
+          console.log('新笔记ID:', currentNote.value.id)
+        }
+        
+        ElMessage.success(currentNote.value.id ? '笔记更新成功' : '笔记创建成功')
+      } else {
+        const errorMsg = response.message || '保存失败'
+        console.error('保存失败:', errorMsg)
+        ElMessage.error(errorMsg)
+        contentChanged.value = true
+      }
+    } else {
+      // 兼容其他响应格式
+      console.log('===== 兼容模式响应处理 =====')
+      
+      const isSuccess = response.code === 200 || response.success === true || response.ok === true
+      
+      if (isSuccess) {
+        // 刷新笔记列表
+        console.log('===== 刷新笔记列表 =====')
+        await loadNotes()
+        
+        // 如果是新创建的笔记，更新当前笔记的ID
+        if (!currentNote.value.id && (response.data?.id || response.id || response.data?.id === 0)) {
+          currentNote.value.id = response.data?.id || response.id
+          console.log('新笔记ID:', currentNote.value.id)
+        }
+        
+        ElMessage.success(currentNote.value.id ? '笔记更新成功' : '笔记创建成功')
+      } else {
+        const errorMsg = response.message || response.msg || '保存失败'
+        console.error('保存失败:', errorMsg)
+        ElMessage.error(errorMsg)
+        contentChanged.value = true
+      }
+    }
+  } catch (error) {
+    console.error('===== 保存笔记异常（详细）=====')
+    console.error('错误消息:', error.message)
+    console.error('错误堆栈:', error.stack)
+    ElMessage.error(error.message || '保存失败，请稍后重试')
+    contentChanged.value = true
+    saving.value = false
+  } finally {
+    saving.value = false
+  }
+}
+
+// 删除笔记
+const deleteNote = (id) => {
+  ElMessageBox.confirm('确定要删除这篇笔记吗？此操作不可恢复。', '警告', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
       const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
       const userId = userInfo.id
       
-      // 从localStorage恢复AI侧边栏状态
-      const savedAIState = localStorage.getItem('aiSidebarVisible')
-      if (savedAIState !== null) {
-        aiSidebarVisible.value = savedAIState === 'true'
-      }
-      
-      // 从localStorage恢复按钮位置
-      const savedPosition = localStorage.getItem('aiButtonPosition')
-      if (savedPosition) {
-        try {
-          const position = JSON.parse(savedPosition)
-          buttonPosition.value = position
-        } catch (e) {
-          console.error('恢复按钮位置失败:', e)
-        }
-      }
-      
-      // 立即从localStorage加载头像URL（与Settings.vue保持一致的键名）
-      avatarUrl.value = localStorage.getItem('avatarUrl') || ''
-      
-      // 首先尝试从后端获取最新的用户信息
-      if (userId) {
-        try {
-          const response = await userAPI.getUserInfo(userId)
-          
-          // 处理不同格式的响应
-          if (response.code === 200 || response.success === true || response.ok === true) {
-            // 获取响应中的用户数据
-            const userData = response.data || response
-            
-            // 优先使用后端返回的昵称，如果没有昵称则使用用户名
-            if (userData.nickname && userData.nickname.trim()) {
-              username.value = userData.nickname
-            } else if (userData.username || userData.name) {
-              username.value = userData.username || userData.name
-            }
-            
-            // 更新头像URL
-            if (userData.avatar && userData.avatar.trim()) {
-              const absolute = toAbsoluteUrl(userData.avatar)
-              avatarUrl.value = absolute
-              localStorage.setItem('avatarUrl', absolute)
-            }
-            
-            // 更新localStorage中的用户信息
-            const updatedUserInfo = {
-              ...userInfo,
-              nickname: userData.nickname,
-              username: userData.username,
-              name: userData.name,
-              avatar: userData.avatar
-            }
-            localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo))
-          }
-        } catch (error) {
-          console.error('获取用户信息失败:', error)
-          // 如果后端获取失败，从localStorage获取
-          if (userInfo && (userInfo.username || userInfo.name)) {
-            username.value = userInfo.username || userInfo.name
-          } else {
-            // 优先获取保存的昵称
-            const savedNickname = localStorage.getItem('nickname')
-            if (savedNickname) {
-              username.value = savedNickname
-            } else {
-              // 如果没有昵称，获取用户名
-              const savedUsername = localStorage.getItem('username')
-              if (savedUsername) {
-                username.value = savedUsername
-              }
-            }
-          }
-        }
-      } else {
-        // 如果没有userId，从localStorage获取
-        if (userInfo && (userInfo.username || userInfo.name)) {
-          username.value = userInfo.username || userInfo.name
-        } else {
-          // 优先获取保存的昵称
-          const savedNickname = localStorage.getItem('nickname')
-          if (savedNickname) {
-            username.value = savedNickname
-          } else {
-            // 如果没有昵称，获取用户名
-            const savedUsername = localStorage.getItem('username')
-            if (savedUsername) {
-              username.value = savedUsername
-            }
-          }
-        }
-      }
-      
-      // 如果本地有保存的头像URL，使用它
-      const savedAvatar = localStorage.getItem('avatarUrl')
-      if (savedAvatar) {
-        avatarUrl.value = savedAvatar
-      } else if (userInfo && userInfo.avatar) {
-        // 如果本地没有，才使用localStorage中userInfo的头像
-        avatarUrl.value = toAbsoluteUrl(userInfo.avatar)
-      }
-      
-      // 检查是否已登录
-      const token = localStorage.getItem('token')
-      if (!token) {
-        ElMessage.warning('请先登录')
+      if (!userId) {
+        ElMessage.error('用户信息不存在，请重新登录')
         router.push('/login')
         return
       }
       
-      // 加载笔记数据
-      await loadNotes()
+      console.log('准备删除笔记，笔记ID:', id, '用户ID:', userId)
       
-      // 默认选中第一篇笔记
-      if (notes.value.length > 0) {
-        currentNote.value = { ...notes.value[0] }
-      }
+      // 调用API删除笔记
+      const response = await noteAPI.deleteNote(id, userId)
       
-      // 监听浏览器关闭事件
-      window.addEventListener('beforeunload', handleBeforeUnload)
-      // 在窗口聚焦或页面变为可见时刷新头像
-      window.addEventListener('focus', refreshAvatarFromLocal)
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-          refreshAvatarFromLocal()
+      console.log('笔记删除响应:', response)
+      
+      // 处理不同格式的响应
+      if (response.code === 200 || response.success === true || response.ok === true) {
+        // 刷新笔记列表
+        await loadNotes()
+        
+        // 如果删除的是当前笔记，清空当前笔记
+        if (currentNote.value && currentNote.value.id === id) {
+          currentNote.value = null
+          contentChanged.value = false
         }
-      })
-    })
-    
-    onUnmounted(() => {
-      window.removeEventListener('beforeunload', handleBeforeUnload)
-      window.removeEventListener('focus', refreshAvatarFromLocal)
-    })
-    
-    return {
-      username,
-      avatarUrl,
-      getAvatarText,
-      notes,
-      filteredNotes,
-      searchKeyword,
-      sortType,
-      currentNote,
-      contentChanged,
-      saving,
-      sidebarCollapsed,
-      mdInputRef,
-      leftSidebarWidth,
-      rightSidebarWidth,
-      isResizing,
-      resizingType,
-      startX,
-      startWidth,
-      startResizing,
-      handleResize,
-      stopResizing,
-      triggerImportMd,
-      handleImportMd,
-      createNote,
-      selectNote,
-      saveCurrentNote,
-      deleteNote,
-      refreshNotes,
-      handleContentChange,
-      handleAIResponse,
-      handleSortChange,
-      getPreview,
-      formatDate,
-      toggleSidebar,
-      handleLogout,
-      goToProfile,
-      // AI助手控制按钮相关
-      showAIButton,
-      aiSidebarVisible,
-      startDragging,
-      stopDragging,
-      toggleAISidebar
+        
+        ElMessage.success('笔记已删除')
+      } else {
+        const errorMsg = response.message || response.msg || '删除笔记失败'
+        console.error('删除笔记失败:', errorMsg)
+        ElMessage.error(errorMsg)
+      }
+    } catch (error) {
+      console.error('删除笔记异常:', error)
+      ElMessage.error('删除失败，请检查网络连接或后端服务')
+    }
+  }).catch(() => {})
+}
+
+// 处理内容变化
+const handleContentChange = () => {
+  contentChanged.value = true
+}
+
+// 处理AI响应
+const handleAIResponse = (response) => {
+  console.log('收到AI响应:', response)
+  // 这里可以根据需要对AI响应进行处理
+  // 例如：显示通知、更新UI状态等
+}
+
+// 刷新笔记
+const refreshNotes = () => {
+  loadNotes()
+  // 如果当前有选中的笔记，更新它
+  if (currentNote.value) {
+    const updatedNote = notes.value.find(note => note.id === currentNote.value.id)
+    if (updatedNote && !contentChanged.value) {
+      currentNote.value = { ...updatedNote }
     }
   }
+  ElMessage.success('笔记已刷新')
 }
+
+// 排序处理
+const handleSortChange = (command) => {
+  sortType.value = command
+}
+
+// 获取笔记预览
+const getPreview = (content) => {
+  // 去除Markdown标记，截取前50个字符作为预览
+  const plainText = content.replace(/#+ |[*_`~]|\\[.*?\\]\\(.*?\\)|\\n/g, '')
+  return plainText.length > 50 ? plainText.substring(0, 50) + '...' : plainText
+}
+
+// 格式化日期
+const formatDate = (dateString) => {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diff = now - date
+  
+  // 小于1分钟
+  if (diff < 60000) {
+    return '刚刚'
+  }
+  // 小于1小时
+  if (diff < 3600000) {
+    return Math.floor(diff / 60000) + '分钟前'
+  }
+  // 小于1天
+  if (diff < 86400000) {
+    return Math.floor(diff / 3600000) + '小时前'
+  }
+  // 小于30天
+  if (diff < 2592000000) {
+    return Math.floor(diff / 86400000) + '天前'
+  }
+  // 大于30天
+  return date.toLocaleDateString()
+}
+
+// 切换侧边栏展开/折叠
+const toggleSidebar = () => {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+}
+
+// 退出登录
+const handleLogout = () => {
+  // 清除token和用户相关信息
+  localStorage.removeItem('token')
+  localStorage.removeItem('userInfo')
+  localStorage.removeItem('username')
+  localStorage.removeItem('avatarUrl')
+  localStorage.removeItem('nickname')
+  ElMessage.success('退出登录成功')
+  // 跳转到登录页
+  router.push('/login')
+}
+
+// 跳转到设置页面
+const goToProfile = () => {
+  console.log('跳转到个人中心');
+  router.push('/settings')
+}
+
+// 页面离开前提示保存
+const handleBeforeUnload = (event) => {
+  if (contentChanged.value) {
+    event.preventDefault()
+    event.returnValue = '有未保存的修改，确定要离开吗？'
+    return event.returnValue
+  }
+}
+
+onMounted(async () => {
+  // 获取用户信息
+  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+  const userId = userInfo.id
+  
+  // 从localStorage恢复AI侧边栏状态
+  const savedAIState = localStorage.getItem('aiSidebarVisible')
+  if (savedAIState !== null) {
+    aiSidebarVisible.value = savedAIState === 'true'
+  }
+  
+  // 从localStorage恢复按钮位置
+  const savedPosition = localStorage.getItem('aiButtonPosition')
+  if (savedPosition) {
+    try {
+      const position = JSON.parse(savedPosition)
+      buttonPosition.value = position
+    } catch (e) {
+      console.error('恢复按钮位置失败:', e)
+    }
+  }
+  
+  // 立即从localStorage加载头像URL（与Settings.vue保持一致的键名）
+  avatarUrl.value = localStorage.getItem('avatarUrl') || ''
+  
+  // 首先尝试从后端获取最新的用户信息
+  if (userId) {
+    try {
+      const response = await userAPI.getUserInfo(userId)
+      
+      // 处理不同格式的响应
+      if (response.code === 200 || response.success === true || response.ok === true) {
+        // 获取响应中的用户数据
+        const userData = response.data || response
+        
+        // 优先使用后端返回的昵称，如果没有昵称则使用用户名
+        if (userData.nickname && userData.nickname.trim()) {
+          username.value = userData.nickname
+        } else if (userData.username || userData.name) {
+          username.value = userData.username || userData.name
+        }
+        
+        // 更新头像URL
+        if (userData.avatar && userData.avatar.trim()) {
+          const absolute = toAbsoluteUrl(userData.avatar)
+          avatarUrl.value = absolute
+          localStorage.setItem('avatarUrl', absolute)
+        }
+        
+        // 更新localStorage中的用户信息
+        const updatedUserInfo = {
+          ...userInfo,
+          nickname: userData.nickname,
+          username: userData.username,
+          name: userData.name,
+          avatar: userData.avatar
+        }
+        localStorage.setItem('userInfo', JSON.stringify(updatedUserInfo))
+      }
+    } catch (error) {
+      console.error('获取用户信息失败:', error)
+      // 如果后端获取失败，从localStorage获取
+      if (userInfo && (userInfo.username || userInfo.name)) {
+        username.value = userInfo.username || userInfo.name
+      } else {
+        // 优先获取保存的昵称
+        const savedNickname = localStorage.getItem('nickname')
+        if (savedNickname) {
+          username.value = savedNickname
+        } else {
+          // 如果没有昵称，获取用户名
+          const savedUsername = localStorage.getItem('username')
+          if (savedUsername) {
+            username.value = savedUsername
+          }
+        }
+      }
+    }
+  } else {
+    // 如果没有userId，从localStorage获取
+    if (userInfo && (userInfo.username || userInfo.name)) {
+      username.value = userInfo.username || userInfo.name
+    } else {
+      // 优先获取保存的昵称
+      const savedNickname = localStorage.getItem('nickname')
+      if (savedNickname) {
+        username.value = savedNickname
+      } else {
+        // 如果没有昵称，获取用户名
+        const savedUsername = localStorage.getItem('username')
+        if (savedUsername) {
+          username.value = savedUsername
+        }
+      }
+    }
+  }
+  
+  // 如果本地有保存的头像URL，使用它
+  const savedAvatar = localStorage.getItem('avatarUrl')
+  if (savedAvatar) {
+    avatarUrl.value = savedAvatar
+  } else if (userInfo && userInfo.avatar) {
+    // 如果本地没有，才使用localStorage中userInfo的头像
+    avatarUrl.value = toAbsoluteUrl(userInfo.avatar)
+  }
+  
+  // 检查是否已登录
+  const token = localStorage.getItem('token')
+  if (!token) {
+    ElMessage.warning('请先登录')
+    router.push('/login')
+    return
+  }
+  
+  // 加载笔记数据
+  await loadNotes()
+  
+  // 默认选中第一篇笔记
+  if (notes.value.length > 0) {
+    currentNote.value = { ...notes.value[0] }
+  }
+  
+  // 监听浏览器关闭事件
+  window.addEventListener('beforeunload', handleBeforeUnload)
+  // 在窗口聚焦或页面变为可见时刷新头像
+  window.addEventListener('focus', refreshAvatarFromLocal)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      refreshAvatarFromLocal()
+    }
+  })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+  window.removeEventListener('focus', refreshAvatarFromLocal)
+})
 </script>
 
 <style scoped>

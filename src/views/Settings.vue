@@ -176,7 +176,7 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { 
@@ -187,520 +187,462 @@ import { ElMessage } from 'element-plus'
 import { userAPI } from '../api/user.js'
 import request from '../api/axios.js'
 
-export default {
-  name: 'Settings',
-  components: {
-    ArrowLeft,
-    User,
-    UserFilled,
-    Lock,
-    Key,
-    Bell,
-    InfoFilled,
-    Document,
-    Check,
-    Refresh,
-    Camera
-  },
-  setup() {
-    const router = useRouter()
-    const username = ref('')
-    const userId = ref('')
-    const email = ref('')
-    const nickname = ref('')
-    const createTime = ref('')
-    const updateLoading = ref(false)
-    const passwordLoading = ref(false)
-    const updateFormRef = ref()
-    const passwordFormRef = ref()
-    const activeTab = ref('account')
-    const noteCount = ref('')
-    // 头像URL状态 - 直接从localStorage初始化，这是最关键的一步
-    const avatarUrl = ref(localStorage.getItem('avatarUrl') || '')
-    // 将后端可能返回的相对路径统一转换为带域名的绝对URL
-    const apiOrigin = new URL(request.defaults.baseURL).origin
-    const toAbsoluteUrl = (url) => {
-      if (!url) return ''
-      if (/^https?:\/\//i.test(url)) return url
-      return `${apiOrigin}${url.startsWith('/') ? url : '/' + url}`
-    }
-    
-    // 更新信息表单
-    const updateForm = reactive({
-      email: '',
-      nickname: ''
-    })
-    
-    // 修改密码表单
-    const passwordForm = reactive({
-      oldPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    })
-    
-    // 通知设置表单
-    const notificationForm = reactive({
-      emailEnabled: true,
-      noteReminder: true
-    })
-    
-    // 更新表单验证规则
-    const updateRules = {
-      email: [
-        { required: true, message: '请输入邮箱', trigger: 'blur' },
-        { type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' }
-      ],
-      nickname: [
-        { required: false, trigger: 'blur' },
-        { min: 2, max: 20, message: '昵称长度应为2-20个字符', trigger: 'blur' }
-      ]
-    }
-    
-    // 密码表单验证规则
-    const passwordRules = {
-      oldPassword: [
-        { required: true, message: '请输入当前密码', trigger: 'blur' }
-      ],
-      newPassword: [
-        { required: true, message: '请输入新密码', trigger: 'blur' },
-        { min: 6, max: 20, message: '密码长度应为6-20个字符', trigger: 'blur' }
-      ],
-      confirmPassword: [
-        { required: true, message: '请再次输入新密码', trigger: 'blur' },
-        {
-          validator: (rule, value, callback) => {
-            if (value !== passwordForm.newPassword) {
-              callback(new Error('两次输入的密码不一致'))
-            } else {
-              callback()
-            }
-          },
-          trigger: 'blur'
+const router = useRouter()
+const username = ref('')
+const userId = ref('')
+const email = ref('')
+const nickname = ref('')
+const createTime = ref('')
+const updateLoading = ref(false)
+const passwordLoading = ref(false)
+const updateFormRef = ref()
+const passwordFormRef = ref()
+const activeTab = ref('account')
+const noteCount = ref('')
+// 头像URL状态 - 直接从localStorage初始化，这是最关键的一步
+const avatarUrl = ref(localStorage.getItem('avatarUrl') || '')
+// 将后端可能返回的相对路径统一转换为带域名的绝对URL
+const apiOrigin = new URL(request.defaults.baseURL).origin
+const toAbsoluteUrl = (url) => {
+  if (!url) return ''
+  if (/^https?:\/\//i.test(url)) return url
+  return `${apiOrigin}${url.startsWith('/') ? url : '/' + url}`
+}
+
+// 更新信息表单
+const updateForm = reactive({
+  email: '',
+  nickname: ''
+})
+
+// 修改密码表单
+const passwordForm = reactive({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+
+// 通知设置表单
+const notificationForm = reactive({
+  emailEnabled: true,
+  noteReminder: true
+})
+
+// 更新表单验证规则
+const updateRules = {
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' }
+  ],
+  nickname: [
+    { required: false, trigger: 'blur' },
+    { min: 2, max: 20, message: '昵称长度应为2-20个字符', trigger: 'blur' }
+  ]
+}
+
+// 密码表单验证规则
+const passwordRules = {
+  oldPassword: [
+    { required: true, message: '请输入当前密码', trigger: 'blur' }
+  ],
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, max: 20, message: '密码长度应为6-20个字符', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请再次输入新密码', trigger: 'blur' },
+    {
+      validator: (rule, value, callback) => {
+        if (value !== passwordForm.newPassword) {
+          callback(new Error('两次输入的密码不一致'))
+        } else {
+          callback()
         }
-      ]
+      },
+      trigger: 'blur'
+    }
+  ]
+}
+
+// 计算属性：获取头像文字
+const getAvatarText = computed(() => {
+  const displayName = nickname.value || username.value
+  if (!displayName) return '用'
+  return displayName.charAt(0).toUpperCase()
+})
+
+// 头像上传前的检查
+const beforeAvatarUpload = (file) => {
+  const isValidFormat = file.type.startsWith('image/')
+  if (!isValidFormat) {
+    ElMessage.error('请上传图片文件!')
+    return false
+  }
+  
+  const isLt2M = file.size / 1024 / 1024 < 2
+  if (!isLt2M) {
+    ElMessage.error('头像大小不能超过 2MB!')
+    return false
+  }
+  return true
+}
+
+// 处理头像上传 - 最终修复版本
+const handleAvatarUpload = async (uploadConfig) => {
+  console.log('===== 开始上传头像 =====', uploadConfig)
+  
+  // 先清空旧的头像URL
+  avatarUrl.value = ''
+  localStorage.setItem('avatarUrl', '')
+  
+  // Element Plus上传组件的参数结构处理
+  const file = uploadConfig.file // Element Plus上传组件会直接传递file对象在config.file中
+  console.log('获取到的文件对象:', file)
+  console.log('文件类型:', file.type)
+  console.log('文件大小:', file.size)
+  console.log('用户ID:', userId.value)
+  
+  if (!file) {
+    const errorMsg = '文件对象为空，无法上传'
+    console.error(errorMsg)
+    ElMessage.error(errorMsg)
+    return
+  }
+  
+  // 使用Promise封装FileReader
+  const getPreviewUrl = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = (e) => resolve(e.target.result)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+  
+  try {
+    // 获取并设置预览URL
+    const localPreviewUrl = await getPreviewUrl(file)
+    avatarUrl.value = localPreviewUrl
+    localStorage.setItem('avatarUrl', localPreviewUrl)
+    ElMessage.info('头像预览已更新')
+    
+    // 检查userId是否有效
+    if (!userId.value || userId.value === '未知') {
+      ElMessage.error('用户信息无效，无法上传头像')
+      console.error('userId无效:', userId.value)
+      return
     }
     
-    // 计算属性：获取头像文字
-    const getAvatarText = computed(() => {
-      const displayName = nickname.value || username.value
-      if (!displayName) return '用'
-      return displayName.charAt(0).toUpperCase()
+    // 直接创建FormData对象进行上传
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('userId', userId.value)
+    
+    console.log('准备发送FormData:', formData.get('userId'), formData.get('file').name)
+    
+    // 直接使用axios发送请求，绕过可能有问题的API封装
+    const response = await request({
+      url: `/user/uploadAvatar/${userId.value}`,
+      method: 'post',
+      data: formData,
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      timeout: 30000 // 增加超时时间
     })
     
-    // 头像上传前的检查
-    const beforeAvatarUpload = (file) => {
-      const isValidFormat = file.type.startsWith('image/')
-      if (!isValidFormat) {
-        ElMessage.error('请上传图片文件!')
-        return false
-      }
-      
-      const isLt2M = file.size / 1024 / 1024 < 2
-      if (!isLt2M) {
-        ElMessage.error('头像大小不能超过 2MB!')
-        return false
-      }
-      return true
+    console.log('上传API返回结果:', response)
+    if (response && response.code === 200) {
+      const absolute = toAbsoluteUrl(response.data)
+      // 以服务端地址为准，覆盖预览地址，确保返回后其它页面能正确加载
+      avatarUrl.value = absolute
+      localStorage.setItem('avatarUrl', absolute)
+      localStorage.setItem('avatarUrlBackend', absolute)
+      ElMessage.success('头像上传成功')
+    } else {
+      ElMessage.error(`头像上传失败: ${response?.msg || response?.message || '未知错误'}`)
+    }
+  } catch (error) {
+    console.error('===== 头像上传错误详情 =====')
+    console.error('错误类型:', error.name)
+    console.error('错误消息:', error.message)
+    if (error.response) {
+      console.error('HTTP状态:', error.response.status)
+      console.error('响应数据:', error.response.data)
+    }
+    ElMessage.error(`头像上传失败: ${error.message || '未知错误'}`)
+  }
+}
+
+// 简化的loadAvatar函数 - 直接从localStorage获取
+const loadAvatar = () => {
+  const savedAvatar = localStorage.getItem('avatarUrl')
+  if (savedAvatar) {
+    avatarUrl.value = savedAvatar
+  }
+}
+
+// 日期格式化函数
+const formatDate = (dateString, type = 'full') => {
+  if (!dateString) return ''
+  
+  try {
+    // 确保日期字符串有效
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) {
+      console.error('无效的日期字符串:', dateString)
+      return ''
     }
     
-    // 处理头像上传 - 最终修复版本
-    const handleAvatarUpload = async (uploadConfig) => {
-      console.log('===== 开始上传头像 =====', uploadConfig)
+    if (type === 'days') {
+      // 计算使用天数 - 优化计算逻辑
+      const now = new Date()
+      // 将时间部分设置为0，只比较日期
+      const startDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+      const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
       
-      // 先清空旧的头像URL
-      avatarUrl.value = ''
-      localStorage.setItem('avatarUrl', '')
+      // 计算时间差（毫秒）
+      const diffTime = Math.abs(endDate - startDate)
+      // 转换为天数，使用Math.ceil确保今天注册也算1天
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
       
-      // Element Plus上传组件的参数结构处理
-      const file = uploadConfig.file // Element Plus上传组件会直接传递file对象在config.file中
-      console.log('获取到的文件对象:', file)
-      console.log('文件类型:', file.type)
-      console.log('文件大小:', file.size)
-      console.log('用户ID:', userId.value)
-      
-      if (!file) {
-        const errorMsg = '文件对象为空，无法上传'
-        console.error(errorMsg)
-        ElMessage.error(errorMsg)
-        return
-      }
-      
-      // 使用Promise封装FileReader
-      const getPreviewUrl = (file) => {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = (e) => resolve(e.target.result)
-          reader.onerror = reject
-          reader.readAsDataURL(file)
-        })
-      }
-      
-      try {
-        // 获取并设置预览URL
-        const localPreviewUrl = await getPreviewUrl(file)
-        avatarUrl.value = localPreviewUrl
-        localStorage.setItem('avatarUrl', localPreviewUrl)
-        ElMessage.info('头像预览已更新')
+      console.log('计算使用天数:', { startDate, endDate, diffDays })
+      return diffDays
+    } else {
+      // 完整日期格式
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const hours = String(date.getHours()).padStart(2, '0')
+      const minutes = String(date.getMinutes()).padStart(2, '0')
+      return `${year}/${month}/${day} ${hours}:${minutes}`
+    }
+  } catch (error) {
+    console.error('日期格式化错误:', error)
+    return ''
+  }
+}
+
+// 页面加载时执行
+onMounted(async () => {
+  // 先加载本地头像
+  loadAvatar()
+  
+  // 加载本地保存的昵称
+  const savedNickname = localStorage.getItem('nickname')
+  if (savedNickname) {
+    nickname.value = savedNickname
+  }
+  
+  // 然后加载用户信息，但不覆盖已有头像和昵称
+  await loadUserInfo()
+  // 加载笔记数量
+  loadNoteCount()
+  loadNotificationSettings()
+})
+
+// 加载用户信息 - 注意：绝对不修改头像URL
+const loadUserInfo = async () => {
+  try {
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    userId.value = userInfo.id || ''
+    
+    if (userId.value) {
+      const response = await userAPI.getUserInfo(userId.value)
+      if (response.code === 200) {
+        const userData = response.data
+        username.value = userData.username || '用户'
+        email.value = userData.email || ''
+        nickname.value = userData.nickname || ''
+        createTime.value = userData.createTime || ''
         
-        // 检查userId是否有效
-        if (!userId.value || userId.value === '未知') {
-          ElMessage.error('用户信息无效，无法上传头像')
-          console.error('userId无效:', userId.value)
-          return
-        }
+        // 填充表单数据
+        updateForm.email = email.value
+        updateForm.nickname = nickname.value
         
-        // 直接创建FormData对象进行上传
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('userId', userId.value)
-        
-        console.log('准备发送FormData:', formData.get('userId'), formData.get('file').name)
-        
-        // 直接使用axios发送请求，绕过可能有问题的API封装
-        const response = await request({
-          url: `/user/uploadAvatar/${userId.value}`,
-          method: 'post',
-          data: formData,
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          },
-          timeout: 30000 // 增加超时时间
-        })
-        
-        console.log('上传API返回结果:', response)
-        if (response && response.code === 200) {
-          const absolute = toAbsoluteUrl(response.data)
-          // 以服务端地址为准，覆盖预览地址，确保返回后其它页面能正确加载
+        // 重要：只有当本地没有头像URL时，才考虑使用后端的头像URL
+        if (!avatarUrl.value && userData.avatar && userData.avatar.trim()) {
+          const absolute = toAbsoluteUrl(userData.avatar)
           avatarUrl.value = absolute
           localStorage.setItem('avatarUrl', absolute)
-          localStorage.setItem('avatarUrlBackend', absolute)
-          ElMessage.success('头像上传成功')
-        } else {
-          ElMessage.error(`头像上传失败: ${response?.msg || response?.message || '未知错误'}`)
         }
-      } catch (error) {
-        console.error('===== 头像上传错误详情 =====')
-        console.error('错误类型:', error.name)
-        console.error('错误消息:', error.message)
-        if (error.response) {
-          console.error('HTTP状态:', error.response.status)
-          console.error('响应数据:', error.response.data)
-        }
-        ElMessage.error(`头像上传失败: ${error.message || '未知错误'}`)
       }
+    } else {
+      // 从localStorage获取用户名
+      username.value = localStorage.getItem('username') || '用户'
+      userId.value = '未知'
     }
-    
-    // 简化的loadAvatar函数 - 直接从localStorage获取
-    const loadAvatar = () => {
-      const savedAvatar = localStorage.getItem('avatarUrl')
-      if (savedAvatar) {
-        avatarUrl.value = savedAvatar
-      }
-    }
-    
-    // 日期格式化函数
-    const formatDate = (dateString, type = 'full') => {
-      if (!dateString) return ''
-      
-      try {
-        // 确保日期字符串有效
-        const date = new Date(dateString)
-        if (isNaN(date.getTime())) {
-          console.error('无效的日期字符串:', dateString)
-          return ''
-        }
-        
-        if (type === 'days') {
-          // 计算使用天数 - 优化计算逻辑
-          const now = new Date()
-          // 将时间部分设置为0，只比较日期
-          const startDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-          const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-          
-          // 计算时间差（毫秒）
-          const diffTime = Math.abs(endDate - startDate)
-          // 转换为天数，使用Math.ceil确保今天注册也算1天
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-          
-          console.log('计算使用天数:', { startDate, endDate, diffDays })
-          return diffDays
-        } else {
-          // 完整日期格式
-          const year = date.getFullYear()
-          const month = String(date.getMonth() + 1).padStart(2, '0')
-          const day = String(date.getDate()).padStart(2, '0')
-          const hours = String(date.getHours()).padStart(2, '0')
-          const minutes = String(date.getMinutes()).padStart(2, '0')
-          return `${year}/${month}/${day} ${hours}:${minutes}`
-        }
-      } catch (error) {
-        console.error('日期格式化错误:', error)
-        return ''
-      }
-    }
-    
-    // 页面加载时执行
-    onMounted(async () => {
-      // 先加载本地头像
-      loadAvatar()
-      
-      // 加载本地保存的昵称
-      const savedNickname = localStorage.getItem('nickname')
-      if (savedNickname) {
-        nickname.value = savedNickname
-      }
-      
-      // 然后加载用户信息，但不覆盖已有头像和昵称
-      await loadUserInfo()
-      // 加载笔记数量
-      loadNoteCount()
-      loadNotificationSettings()
-    })
-    
-    // 加载用户信息 - 注意：绝对不修改头像URL
-    const loadUserInfo = async () => {
-      try {
-        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-        userId.value = userInfo.id || ''
-        
-        if (userId.value) {
-          const response = await userAPI.getUserInfo(userId.value)
-          if (response.code === 200) {
-            const userData = response.data
-            username.value = userData.username || '用户'
-            email.value = userData.email || ''
-            nickname.value = userData.nickname || ''
-            createTime.value = userData.createTime || ''
-            
-            // 填充表单数据
-            updateForm.email = email.value
-            updateForm.nickname = nickname.value
-            
-            // 重要：只有当本地没有头像URL时，才考虑使用后端的头像URL
-            if (!avatarUrl.value && userData.avatar && userData.avatar.trim()) {
-              const absolute = toAbsoluteUrl(userData.avatar)
-              avatarUrl.value = absolute
-              localStorage.setItem('avatarUrl', absolute)
-            }
-          }
-        } else {
-          // 从localStorage获取用户名
-          username.value = localStorage.getItem('username') || '用户'
-          userId.value = '未知'
-        }
-      } catch (error) {
-        console.error('加载用户信息失败:', error)
-        ElMessage.error('加载用户信息失败')
-      }
-    }
-    
-    // 加载通知设置
-    const loadNotificationSettings = () => {
-      try {
-        const savedSettings = localStorage.getItem('notificationSettings')
-        if (savedSettings) {
-          Object.assign(notificationForm, JSON.parse(savedSettings))
-        }
-      } catch (error) {
-        console.error('加载通知设置失败:', error)
-      }
-    }
-    
-    // 保存通知设置
-    const saveNotificationSettings = () => {
-      try {
-        localStorage.setItem('notificationSettings', JSON.stringify(notificationForm))
-        ElMessage.success('通知设置已保存')
-      } catch (error) {
-        console.error('保存通知设置失败:', error)
-        ElMessage.error('保存设置失败')
-      }
-    }
-    
-    // 更新个人信息
-    const handleUpdateInfo = async () => {
-      await updateFormRef.value.validate(async (valid) => {
-        if (valid) {
-          updateLoading.value = true
-          try {
-            const response = await userAPI.updateUserInfo({
-              id: userId.value,
-              email: updateForm.email,
-              nickname: updateForm.nickname
-            })
-            
-            if (response.code === 200) {
-              ElMessage.success('个人信息更新成功')
-              // 更新本地缓存
-              email.value = updateForm.email
-              nickname.value = updateForm.nickname
-              
-              // 同步更新localStorage中的昵称
-              localStorage.setItem('nickname', updateForm.nickname)
-            } else {
-              ElMessage.error(response.msg || '更新失败')
-            }
-          } catch (error) {
-            console.error('更新个人信息失败:', error)
-            ElMessage.error('网络错误，请稍后重试')
-          } finally {
-            updateLoading.value = false
-          }
-        }
-      })
-    }
-    
-    // 修改密码
-    const handleChangePassword = async () => {
-      await passwordFormRef.value.validate(async (valid) => {
-        if (valid) {
-          passwordLoading.value = true
-          try {
-            const response = await userAPI.changePassword({
-              userId: userId.value,
-              oldPassword: passwordForm.oldPassword,
-              newPassword: passwordForm.newPassword
-            })
-            
-            if (response.code === 200) {
-              ElMessage.success('密码修改成功，请重新登录')
-              resetPasswordForm()
-              // 跳转到登录页
-              setTimeout(() => {
-                router.push('/login')
-                localStorage.removeItem('userInfo')
-                localStorage.removeItem('username')
-              }, 1500)
-            } else {
-              ElMessage.error(response.msg || '密码修改失败')
-            }
-          } catch (error) {
-            console.error('修改密码失败:', error)
-            ElMessage.error('网络错误，请稍后重试')
-          } finally {
-            passwordLoading.value = false
-          }
-        }
-      })
-    }
-    
-    // 重置更新表单
-    const resetUpdateForm = () => {
-      updateFormRef.value.resetFields()
-      updateForm.email = email.value
-      updateForm.nickname = nickname.value
-    }
-    
-    // 重置密码表单
-    const resetPasswordForm = () => {
-      passwordFormRef.value.resetFields()
-    }
-    
-    // 加载笔记数量
-    const loadNoteCount = async () => {
-      try {
-        // 重置为0
-        noteCount.value = 0
-        
-        // 如果用户已登录，使用正确的API端点获取真实的笔记数量
-        if (userId.value && userId.value !== '未知') {
-          try {
-            // 使用正确的API端点获取笔记数量
-            const response = await userAPI.getNoteCount(userId.value)
-            if (response.code === 200) {
-              // 从后端API响应中提取数量
-              if (typeof response.data === 'number') {
-                // 如果是直接的数字
-                noteCount.value = response.data
-              } else if (response.data && typeof response.data === 'object') {
-                // 如果是包含count字段的对象
-                noteCount.value = response.data.count || 0
-              } else if (typeof response.data === 'string') {
-                // 如果是字符串消息，尝试解析数字
-                const countMatch = response.data.match(/\d+/)
-                if (countMatch) {
-                  noteCount.value = parseInt(countMatch[0])
-                }
-              }
-              console.log('从后端API获取的笔记数量:', noteCount.value)
-            }
-          } catch (apiError) {
-            console.error('API调用失败:', apiError.message)
-            // 失败时尝试从笔记列表API获取数量
-            try {
-              const notesResponse = await noteAPI.getUserNotes(userId.value)
-              if (notesResponse.code === 200 && notesResponse.data) {
-                if (notesResponse.data.records && Array.isArray(notesResponse.data.records)) {
-                  noteCount.value = notesResponse.data.records.length
-                } else if (Array.isArray(notesResponse.data)) {
-                  noteCount.value = notesResponse.data.length
-                }
-              }
-            } catch (notesError) {
-              console.error('获取笔记列表失败:', notesError.message)
-            }
-          }
-        } else {
-          // 用户未登录时尝试从本地存储获取
-          try {
-            const mainNotes = JSON.parse(localStorage.getItem('notes') || '[]')
-            noteCount.value = mainNotes.length
-            console.log('用户未登录，使用本地存储的笔记数量:', noteCount.value)
-          } catch (error) {
-            console.error('从本地存储获取笔记数量失败:', error)
-          }
-        }
-      } catch (error) {
-        console.error('加载笔记数量发生未预期错误:', error)
-        noteCount.value = 0
-      }
-    }
-    
-    // 返回上一页
-    const goBack = () => {
-      router.back()
-    }
-    
-    return {
-      username,
-      userId,
-      email,
-      nickname,
-      createTime,
-      updateLoading,
-      passwordLoading,
-      updateFormRef,
-      passwordFormRef,
-      updateForm,
-      passwordForm,
-      notificationForm,
-      updateRules,
-      passwordRules,
-      activeTab,
-      noteCount,
-      avatarUrl,
-      getAvatarText,
-      formatDate,
-      handleUpdateInfo,
-      handleChangePassword,
-      resetUpdateForm,
-      resetPasswordForm,
-      saveNotificationSettings,
-      goBack,
-      beforeAvatarUpload,
-      handleAvatarUpload,
-      // 导出图标组件以便在模板中使用
-      UserFilled,
-      Key,
-      Lock,
-      Bell,
-      InfoFilled,
-      Document,
-      Check,
-      Refresh,
-      Camera
-    }
+  } catch (error) {
+    console.error('加载用户信息失败:', error)
+    ElMessage.error('加载用户信息失败')
   }
+}
+
+// 加载通知设置
+const loadNotificationSettings = () => {
+  try {
+    const savedSettings = localStorage.getItem('notificationSettings')
+    if (savedSettings) {
+      Object.assign(notificationForm, JSON.parse(savedSettings))
+    }
+  } catch (error) {
+    console.error('加载通知设置失败:', error)
+  }
+}
+
+// 保存通知设置
+const saveNotificationSettings = () => {
+  try {
+    localStorage.setItem('notificationSettings', JSON.stringify(notificationForm))
+    ElMessage.success('通知设置已保存')
+  } catch (error) {
+    console.error('保存通知设置失败:', error)
+    ElMessage.error('保存设置失败')
+  }
+}
+
+// 更新个人信息
+const handleUpdateInfo = async () => {
+  await updateFormRef.value.validate(async (valid) => {
+    if (valid) {
+      updateLoading.value = true
+      try {
+        const response = await userAPI.updateUserInfo({
+          id: userId.value,
+          email: updateForm.email,
+          nickname: updateForm.nickname
+        })
+        
+        if (response.code === 200) {
+          ElMessage.success('个人信息更新成功')
+          // 更新本地缓存
+          email.value = updateForm.email
+          nickname.value = updateForm.nickname
+          
+          // 同步更新localStorage中的昵称
+          localStorage.setItem('nickname', updateForm.nickname)
+        } else {
+          ElMessage.error(response.msg || '更新失败')
+        }
+      } catch (error) {
+        console.error('更新个人信息失败:', error)
+        ElMessage.error('网络错误，请稍后重试')
+      } finally {
+        updateLoading.value = false
+      }
+    }
+  })
+}
+
+// 修改密码
+const handleChangePassword = async () => {
+  await passwordFormRef.value.validate(async (valid) => {
+    if (valid) {
+      passwordLoading.value = true
+      try {
+        const response = await userAPI.changePassword({
+          userId: userId.value,
+          oldPassword: passwordForm.oldPassword,
+          newPassword: passwordForm.newPassword
+        })
+        
+        if (response.code === 200) {
+          ElMessage.success('密码修改成功，请重新登录')
+          resetPasswordForm()
+          // 跳转到登录页
+          setTimeout(() => {
+            router.push('/login')
+            localStorage.removeItem('userInfo')
+            localStorage.removeItem('username')
+          }, 1500)
+        } else {
+          ElMessage.error(response.msg || '密码修改失败')
+        }
+      } catch (error) {
+        console.error('修改密码失败:', error)
+        ElMessage.error('网络错误，请稍后重试')
+      } finally {
+        passwordLoading.value = false
+      }
+    }
+  })
+}
+
+// 重置更新表单
+const resetUpdateForm = () => {
+  updateFormRef.value.resetFields()
+  updateForm.email = email.value
+  updateForm.nickname = nickname.value
+}
+
+// 重置密码表单
+const resetPasswordForm = () => {
+  passwordFormRef.value.resetFields()
+}
+
+// 加载笔记数量
+const loadNoteCount = async () => {
+  try {
+    // 重置为0
+    noteCount.value = 0
+    
+    // 如果用户已登录，使用正确的API端点获取真实的笔记数量
+    if (userId.value && userId.value !== '未知') {
+      try {
+        // 使用正确的API端点获取笔记数量
+        const response = await userAPI.getNoteCount(userId.value)
+        if (response.code === 200) {
+          // 从后端API响应中提取数量
+          if (typeof response.data === 'number') {
+            // 如果是直接的数字
+            noteCount.value = response.data
+          } else if (response.data && typeof response.data === 'object') {
+            // 如果是包含count字段的对象
+            noteCount.value = response.data.count || 0
+          } else if (typeof response.data === 'string') {
+            // 如果是字符串消息，尝试解析数字
+            const countMatch = response.data.match(/\d+/)
+            if (countMatch) {
+              noteCount.value = parseInt(countMatch[0])
+            }
+          }
+          console.log('从后端API获取的笔记数量:', noteCount.value)
+        }
+      } catch (apiError) {
+        console.error('API调用失败:', apiError.message)
+        // 失败时尝试从笔记列表API获取数量
+        try {
+          const notesResponse = await userAPI.getUserNotes(userId.value)
+          if (notesResponse.code === 200 && notesResponse.data) {
+            if (notesResponse.data.records && Array.isArray(notesResponse.data.records)) {
+              noteCount.value = notesResponse.data.records.length
+            } else if (Array.isArray(notesResponse.data)) {
+              noteCount.value = notesResponse.data.length
+            }
+          }
+        } catch (notesError) {
+          console.error('获取笔记列表失败:', notesError.message)
+        }
+      }
+    } else {
+      // 用户未登录时尝试从本地存储获取
+      try {
+        const mainNotes = JSON.parse(localStorage.getItem('notes') || '[]')
+        noteCount.value = mainNotes.length
+        console.log('用户未登录，使用本地存储的笔记数量:', noteCount.value)
+      } catch (error) {
+        console.error('从本地存储获取笔记数量失败:', error)
+      }
+    }
+  } catch (error) {
+    console.error('加载笔记数量发生未预期错误:', error)
+    noteCount.value = 0
+  }
+}
+
+// 返回上一页
+const goBack = () => {
+  router.back()
 }
 </script>
 
