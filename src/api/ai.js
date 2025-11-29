@@ -62,21 +62,38 @@ export default {
           buffer += chunk;
           
           // 处理SSE格式的消息
-          const messages = buffer.split(/\r?\n/);
-          buffer = messages.pop(); // 保留不完整的最后一条消息
+          // 分割所有完整的SSE事件
+          const events = buffer.split(/\r?\n\r?\n/);
+          // 保留最后一个可能不完整的事件
+          buffer = events.pop() || '';
           
-          messages.forEach(message => {
-            if (message.startsWith('data:')) {
-              const data = message.slice(5).trim();
-              if (data) {
-                try {
-                  // 尝试解析JSON，如果失败则作为普通文本处理
-                  const parsed = JSON.parse(data);
-                  onMessage && onMessage(parsed);
-                } catch (e) {
-                  // 直接将文本作为消息内容
-                  onMessage && onMessage({ content: data });
+          // 处理每个完整的SSE事件
+          events.forEach(event => {
+            if (!event.trim()) return;
+            
+            // 解析事件数据
+            const eventLines = event.split(/\r?\n/);
+            let eventData = '';
+            
+            eventLines.forEach(line => {
+              // 处理data字段
+              if (line.startsWith('data:')) {
+                const data = line.trim();
+                if (data) {
+                  eventData += data;
                 }
+              }
+            });
+            
+            // 如果有数据，发送给回调函数
+            if (eventData) {
+              // 解析JSON数据
+              try {
+                const parsedData = JSON.parse(eventData);
+                onMessage && onMessage(parsedData);
+              } catch (e) {
+                // 如果不是JSON格式，直接作为文本处理
+                onMessage && onMessage({ content: eventData });
               }
             }
           });

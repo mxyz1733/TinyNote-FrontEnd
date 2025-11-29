@@ -25,7 +25,7 @@
             <div v-if="message.isStreaming" class="streaming-indicator">
               <el-icon class="is-loading"><Loading /></el-icon>
             </div>
-            <div class="message-text" v-html="formatMessage(message.content)"></div>
+            <div class="message-text" v-html="message.renderedContent"></div>
             <div v-if="message.timestamp" class="message-time">{{ formatTime(message.timestamp) }}</div>
           </div>
         </div>
@@ -98,16 +98,59 @@ const messages = ref([])
 const inputMessage = ref('')
 const isTyping = ref(false)
 const chatContainer = ref(null)
-const minimized = ref(false)
-const unreadCount = ref(0)
 let currentStreamMessageIndex = -1
 let currentAbortController = null
 let scrollTimeout = null
 
-// 监听最小化状态变化
-watch(minimized, (newVal) => {
-  emit('toggle-minimize', newVal)
-})
+// 本地存储键名
+const STORAGE_KEY = 'ai_chat_messages'
+
+// 文本流相关变量
+let textBuffer = '' // 文本缓冲区
+let streamInterval = null // 逐字显示的定时器
+let streamSpeed = 30 // 逐字显示速度（毫秒/字）
+
+
+
+
+
+// 中文文本预处理函数
+const preprocessText = (text) => {
+  if (!text) return ''
+  
+  // 移除控制字符
+  const controlCharRegex = /[\u0000-\u001F\u007F-\u009F]/g;
+  return text.replace(controlCharRegex, '')
+}
+
+// 逐字显示文本函数
+const streamText = () => {
+  if (textBuffer.length === 0) {
+    // 文本流结束，清除定时器
+    if (streamInterval) {
+      clearInterval(streamInterval)
+      streamInterval = null
+    }
+    return
+  }
+  
+  // 从缓冲区取出一个字符
+  const char = textBuffer.charAt(0)
+  textBuffer = textBuffer.slice(1)
+  
+  // 更新当前AI消息
+  if (currentStreamMessageIndex >= 0 && currentStreamMessageIndex < messages.value.length) {
+    // 更新原始内容
+    messages.value[currentStreamMessageIndex].content += char
+    
+    // 直接使用原始Markdown文本作为渲染内容，不进行HTML转换
+    // 这样可以显示Markdown文本处理过程
+    messages.value[currentStreamMessageIndex].renderedContent = messages.value[currentStreamMessageIndex].content
+    
+    // 滚动到底部
+    optimizedScrollToBottom()
+  }
+}
 
 // 发送消息
 const sendMessage = async () => {
@@ -117,6 +160,7 @@ const sendMessage = async () => {
   messages.value.push({
     role: 'user',
     content: userMessage,
+    renderedContent: userMessage, // 用户消息直接显示原始文本
     timestamp: new Date()
   })
 
@@ -127,6 +171,7 @@ const sendMessage = async () => {
   currentStreamMessageIndex = messages.value.push({
     role: 'assistant',
     content: '',
+    renderedContent: '',
     isStreaming: true,
     timestamp: new Date()
   }) - 1
@@ -167,47 +212,71 @@ const sendMessage = async () => {
               contentChunk = JSON.stringify(chunk)
             }
 
-            // 确保中文显示正常，移除可能的控制字符
-            const controlCharRegex = /[\u0000-\u001F\u007F-\u009F]/g;
-            contentChunk = contentChunk.replace(controlCharRegex, '')
+            // 预处理文本
+            contentChunk = preprocessText(contentChunk)
 
-            // 追加到当前AI消息
-            messages.value[currentStreamMessageIndex].content += contentChunk
+            // 将处理后的文本添加到缓冲区
+            textBuffer += contentChunk
 
-            // 滚动到底部
-            optimizedScrollToBottom()
+            // 如果还没有开始逐字显示，启动定时器
+            if (!streamInterval) {
+              streamInterval = setInterval(streamText, streamSpeed)
+            }
           }
         },
         // 完成回调
         () => {
-          if (currentStreamMessageIndex >= 0 && currentStreamMessageIndex < messages.value.length) {
-            messages.value[currentStreamMessageIndex].isStreaming = false
+          // 等待缓冲区文本显示完成
+          const checkBufferEmpty = () => {
+            if (textBuffer.length === 0) {
+              if (currentStreamMessageIndex >= 0 && currentStreamMessageIndex < messages.value.length) {
+                messages.value[currentStreamMessageIndex].isStreaming = false
+                
+                // 最终也直接使用Markdown文本，不进行HTML转换
+                // 保持与逐字显示一致的显示效果
+                messages.value[currentStreamMessageIndex].renderedContent = messages.value[currentStreamMessageIndex].content
 
-            // 发送ai-response事件
-            emit('ai-response', messages.value[currentStreamMessageIndex].content)
+                // 发送ai-response事件
+                emit('ai-response', messages.value[currentStreamMessageIndex].content)
+              }
 
-            // 如果窗口最小化，增加未读计数
-            if (minimized.value) {
-              unreadCount.value++
+              // 清除定时器
+              if (streamInterval) {
+                clearInterval(streamInterval)
+                streamInterval = null
+              }
+
+              isTyping.value = false
+              currentStreamMessageIndex = -1
+              currentAbortController = null
+
+              // 滚动到底部
+              nextTick(() => optimizedScrollToBottom())
+            } else {
+              // 继续等待
+              setTimeout(checkBufferEmpty, 100)
             }
           }
 
-          isTyping.value = false
-          currentStreamMessageIndex = -1
-          currentAbortController = null
-
-          // 滚动到底部
-          nextTick(() => optimizedScrollToBottom())
+          checkBufferEmpty()
         },
         // 错误回调
         (error) => {
           console.error('AI请求失败:', error)
           ElMessage.error('AI请求失败，请稍后重试')
 
+          // 清除定时器
+          if (streamInterval) {
+            clearInterval(streamInterval)
+            streamInterval = null
+          }
+
           if (currentStreamMessageIndex >= 0 && currentStreamMessageIndex < messages.value.length) {
+            const errorMessage = '抱歉，我暂时无法响应你的请求。请稍后再试或检查网络连接。'
             messages.value[currentStreamMessageIndex] = {
               role: 'assistant',
-              content: '抱歉，我暂时无法响应你的请求。请稍后再试或检查网络连接。',
+              content: errorMessage,
+              renderedContent: errorMessage, // 错误消息直接显示原始文本
               isStreaming: false,
               timestamp: new Date(),
               isError: true
@@ -217,6 +286,7 @@ const sendMessage = async () => {
           isTyping.value = false
           currentStreamMessageIndex = -1
           currentAbortController = null
+          textBuffer = '' // 清空缓冲区
 
           // 滚动到底部
           nextTick(() => optimizedScrollToBottom())
@@ -239,9 +309,17 @@ const sendMessage = async () => {
 // 清空聊天
 const clearChat = () => {
   messages.value = []
+  
+  // 清空缓冲区和定时器
+  textBuffer = ''
+  if (streamInterval) {
+    clearInterval(streamInterval)
+    streamInterval = null
+  }
+  
+  // 更新本地存储
+  saveMessagesToStorage()
 }
-
-
 
 // 完全关闭窗口
 const closeWindow = () => {
@@ -249,6 +327,13 @@ const closeWindow = () => {
   if (currentAbortController) {
     currentAbortController.abort()
     currentAbortController = null
+  }
+  
+  // 清空缓冲区和定时器
+  textBuffer = ''
+  if (streamInterval) {
+    clearInterval(streamInterval)
+    streamInterval = null
   }
 
   // 向父组件发送关闭事件
@@ -260,8 +345,41 @@ const closeWindow = () => {
 const formatMessage = (content) => {
   if (!content) return ''
 
+  // 配置marked选项，确保中文文本正确处理
+  const markedOptions = {
+    breaks: true, // 允许换行符转换为<br>
+    gfm: true, // 使用GitHub风格的Markdown
+    sanitize: false, // 允许HTML标签
+    langPrefix: 'language-', // 代码块的语言前缀
+    headerIds: true, // 为标题添加ID
+    mangle: false // 不混淆邮箱地址
+  }
+
+  // 预处理内容，确保在逐字显示时能正确识别段落
+  let processedContent = content
+  
+  // 对于逐字显示的情况，我们需要确保marked能正确处理部分文本
+  // 1. 确保最后一个字符不是空格，避免marked忽略
+  if (processedContent.endsWith(' ')) {
+    processedContent += '\u200B' // 添加零宽空格
+  }
+  
+  // 2. 确保至少有一个换行符，帮助marked识别段落结构
+  if (!processedContent.includes('\n')) {
+    processedContent += '\n\n' // 添加临时换行符，确保段落能被正确识别
+  }
+  
   // 使用marked库渲染Markdown
-  return marked(content)
+  let html = marked(processedContent, markedOptions)
+  
+  // 后处理：移除临时添加的零宽空格和多余的空段落
+  html = html.replace(/\u200B/g, '')
+  
+  // 移除末尾可能出现的空段落
+  html = html.replace(/<p><\/p>$/i, '')
+  html = html.replace(/<p>&nbsp;<\/p>$/i, '')
+  
+  return html
 }
 
 // 优化滚动行为，避免频繁滚动
@@ -306,6 +424,32 @@ const formatTime = (timestamp) => {
   }
 }
 
+// 从本地存储加载聊天记录
+const loadMessagesFromStorage = () => {
+  try {
+    const storedMessages = localStorage.getItem(STORAGE_KEY)
+    if (storedMessages) {
+      const parsedMessages = JSON.parse(storedMessages)
+      // 确保每条消息都直接显示原始文本，不进行HTML转换
+      parsedMessages.forEach(message => {
+        message.renderedContent = message.content
+      })
+      messages.value = parsedMessages
+    }
+  } catch (error) {
+    console.error('加载聊天记录失败:', error)
+  }
+}
+
+// 保存聊天记录到本地存储
+const saveMessagesToStorage = () => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.value))
+  } catch (error) {
+    console.error('保存聊天记录失败:', error)
+  }
+}
+
 // 组件挂载时的初始化
 onMounted(() => {
   // 初始化时加载用户信息
@@ -316,13 +460,25 @@ onMounted(() => {
       // 注意：这只是一个临时解决方案，实际项目中应该通过props传入
     }
   }
+  
+  // 从本地存储加载聊天记录
+  loadMessagesFromStorage()
 })
+
+// 监听messages变化，保存到本地存储
+watch(
+    () => messages.value,
+    () => {
+      saveMessagesToStorage()
+    },
+    { deep: true } // 深度监听，确保对象内部变化也能被捕获
+)
 
 // 监听visible变化
 watch(
     () => props.visible,
     (newVal) => {
-      if (newVal && !minimized.value) {
+      if (newVal) {
         // 当窗口从隐藏状态变为显示时，滚动到底部
         nextTick(() => optimizedScrollToBottom())
       }
