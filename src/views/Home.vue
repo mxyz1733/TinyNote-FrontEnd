@@ -339,10 +339,9 @@ const getAvatarText = computed(() => {
 })
 
 const handleLogout = () => {
-  // 清除token和用户信息
+  // 清除token和用户信息，但保留记住我的用户名和密码
   localStorage.removeItem('token')
   localStorage.removeItem('userInfo')
-  localStorage.removeItem('username')
   localStorage.removeItem('avatarUrl')
   ElMessage.success('退出登录成功')
   // 跳转到登录页

@@ -44,6 +44,7 @@
               class="animated-input"
               @focus="focus.username = true"
               @blur="focus.username = false"
+              @input="onUsernameInput"
             >
               <template #prefix>
                 <div class="icon-wrapper">
@@ -187,26 +188,24 @@ const handleLogin = async () => {
     await loginFormRef.value.validate()
     loading.value = true
     
-    console.log('登录尝试:', { username: loginForm.username, password: '******' })
-    
     // 调用后端API
     const response = await userAPI.login({
       username: loginForm.username,
       password: loginForm.password
     })
     
-    console.log('登录响应:', response)
-    
     if (response.code === 200) {
       // 保存token和用户信息到localStorage
       localStorage.setItem('token', response.data.token)
       localStorage.setItem('userInfo', JSON.stringify(response.data.userInfo))
       
-      // 保存用户名和昵称
+      // 保存用户名和密码
       if (rememberMe.value) {
-        localStorage.setItem('username', loginForm.username)
+        localStorage.setItem('rememberedUsername', loginForm.username)
+        localStorage.setItem('rememberedPassword', loginForm.password)
       } else {
-        localStorage.removeItem('username')
+        localStorage.removeItem('rememberedUsername')
+        localStorage.removeItem('rememberedPassword')
       }
       
       // 保存用户昵称到localStorage
@@ -254,8 +253,22 @@ const goToRegister = () => {
   router.push('/register')
 }
 
-// 页面加载动画效果
+// 处理用户名输入，自动填充密码
+const onUsernameInput = () => {
+  // 检查localStorage中是否有保存的用户名和密码
+  const rememberedUsername = localStorage.getItem('rememberedUsername')
+  const rememberedPassword = localStorage.getItem('rememberedPassword')
+  
+  // 当用户输入的用户名与保存的用户名完全匹配时，自动填充密码
+  if (loginForm.username === rememberedUsername && rememberedPassword) {
+    loginForm.password = rememberedPassword
+    rememberMe.value = true
+  }
+}
+
+// 页面加载时执行的逻辑
 onMounted(() => {
+  // 页面加载动画效果
   const container = document.querySelector('.login-container')
   if (container) {
     setTimeout(() => {
@@ -272,14 +285,21 @@ onMounted(() => {
       }, index * 200)
     })
   }, 500)
+  
+  // 检查是否有记住的用户名和密码
+  const rememberedUsername = localStorage.getItem('rememberedUsername')
+  const rememberedPassword = localStorage.getItem('rememberedPassword')
+  
+  if (rememberedUsername) {
+    loginForm.username = rememberedUsername
+    rememberMe.value = true
+    
+    // 如果有保存的密码，自动填充
+    if (rememberedPassword) {
+      loginForm.password = rememberedPassword
+    }
+  }
 })
-
-// 检查是否有记住的用户名
-const savedUsername = localStorage.getItem('username')
-if (savedUsername) {
-  loginForm.username = savedUsername
-  rememberMe.value = true
-}
 </script>
 
 <style scoped>

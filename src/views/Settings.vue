@@ -553,7 +553,8 @@ const handleChangePassword = async () => {
           setTimeout(() => {
             router.push('/login')
             localStorage.removeItem('userInfo')
-            localStorage.removeItem('username')
+            localStorage.removeItem('token')
+            localStorage.removeItem('password') // 清除旧密码，因为密码已经改变
           }, 1500)
         } else {
           ElMessage.error(response.msg || '密码修改失败')
