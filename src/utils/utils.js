@@ -111,5 +111,82 @@ export const utils = {
    */
   saveAvatarUrl(avatarUrl) {
     localStorage.setItem('avatarUrl', avatarUrl)
+  },
+  
+  /**
+   * 检查token是否有效
+   * @returns {Promise<boolean>} - token是否有效
+   */
+  async checkTokenValidity() {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      return false
+    }
+    
+    try {
+      // 调用后端token验证接口
+      const response = await request({
+        url: '/auth/checkToken',
+        method: 'post',
+        data: { token }
+      })
+      
+      return response.code === 200 && response.data === true
+    } catch (error) {
+      console.error('检查token有效性失败:', error)
+      return false
+    }
+  },
+  
+  /**
+   * 解析JWT token，获取payload信息
+   * @param {string} token - JWT token
+   * @returns {Object|null} - 解析后的payload信息
+   */
+  parseJwt(token) {
+    if (!token) return null
+    
+    try {
+      const base64Url = token.split('.')[1]
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+      }).join(''))
+      
+      return JSON.parse(jsonPayload)
+    } catch (error) {
+      console.error('解析JWT失败:', error)
+      return null
+    }
+  },
+  
+  /**
+   * 检查token是否即将过期
+   * @param {string} token - JWT token
+   * @param {number} minutes - 提前多少分钟检查
+   * @returns {boolean} - token是否即将过期
+   */
+  isTokenExpiringSoon(token, minutes = 5) {
+    const payload = this.parseJwt(token)
+    if (!payload || !payload.exp) {
+      return true
+    }
+    
+    const now = Math.floor(Date.now() / 1000)
+    const exp = payload.exp
+    const diffMinutes = (exp - now) / 60
+    
+    return diffMinutes < minutes
+  },
+  
+  /**
+   * 清除所有用户相关数据
+   */
+  clearUserInfo() {
+    localStorage.removeItem('token')
+    localStorage.removeItem('userInfo')
+    localStorage.removeItem('username')
+    localStorage.removeItem('avatarUrl')
+    localStorage.removeItem('nickname')
   }
 }

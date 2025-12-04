@@ -63,22 +63,32 @@ export const authAPI = {
   },
   
   /**
-   * 用户登出
-   * @returns {void}
-   */
-  logout() {
-    // 清除token和用户相关信息
-    localStorage.removeItem('token')
-    localStorage.removeItem('userInfo')
-    localStorage.removeItem('username')
-    localStorage.removeItem('avatarUrl')
-    localStorage.removeItem('nickname')
-    
-    // 保留记住我的用户名和密码
-    // localStorage.removeItem('rememberedUsername')
-    // localStorage.removeItem('rememberedPassword')
-    
-    ElMessage.success('退出登录成功')
+ * 用户登出
+ * @returns {Promise<void>}
+ */
+  async logout() {
+    try {
+      // 调用后端登出接口，清除Redis中的token
+      await request({
+        url: '/auth/logout',
+        method: 'post'
+      })
+    } catch (error) {
+      console.error('调用登出接口失败:', error)
+    } finally {
+      // 清除token和用户相关信息
+      localStorage.removeItem('token')
+      localStorage.removeItem('userInfo')
+      localStorage.removeItem('username')
+      localStorage.removeItem('avatarUrl')
+      localStorage.removeItem('nickname')
+      
+      // 保留记住我的用户名和密码
+      // localStorage.removeItem('rememberedUsername')
+      // localStorage.removeItem('rememberedPassword')
+      
+      ElMessage.success('退出登录成功')
+    }
   },
   
   /**

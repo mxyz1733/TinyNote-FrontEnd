@@ -42,8 +42,26 @@ request.interceptors.response.use(
       if (res.code === 200) {
         // 成功响应，返回完整res对象
         return res
+      } else if (res.code === 401) {
+        // 401未授权，清除token并跳转到登录页
+        console.error('===== 401未授权 =====')
+        console.error('完整响应数据:', JSON.stringify(res, null, 2))
+        
+        // 清除本地token和用户信息
+        localStorage.removeItem('token')
+        localStorage.removeItem('userInfo')
+        localStorage.removeItem('username')
+        localStorage.removeItem('avatarUrl')
+        localStorage.removeItem('nickname')
+        
+        // 跳转到登录页
+        window.location.href = '/login'
+        
+        const errorMsg = res.message || '登录已过期，请重新登录'
+        ElMessage.error(errorMsg)
+        return Promise.reject(new Error(errorMsg))
       } else {
-        // 业务错误，抛出异常
+        // 其他业务错误，抛出异常
         console.error('===== 业务错误响应详情 =====')
         console.error('完整响应数据:', JSON.stringify(res, null, 2))
         console.error('响应码:', res.code)
@@ -67,6 +85,20 @@ request.interceptors.response.use(
         console.error('完整响应数据:', JSON.stringify(res, null, 2))
         console.error('响应码:', res.code)
         console.error('错误消息:', res.message || res.msg || '无错误消息')
+        
+        if (res.code === 401) {
+          // 401未授权，清除token并跳转到登录页
+          localStorage.removeItem('token')
+          localStorage.removeItem('userInfo')
+          localStorage.removeItem('username')
+          localStorage.removeItem('avatarUrl')
+          localStorage.removeItem('nickname')
+          
+          window.location.href = '/login'
+          const errorMsg = res.message || '登录已过期，请重新登录'
+          ElMessage.error(errorMsg)
+          return Promise.reject(new Error(errorMsg))
+        }
         
         const errorMsg = res.message || res.msg || `请求失败(code=${res.code})`
         ElMessage.error(errorMsg)
@@ -92,6 +124,20 @@ request.interceptors.response.use(
       console.error('响应头:', error.response.headers)
       console.error('响应数据:', JSON.stringify(error.response.data, null, 2))
       
+      if (error.response.status === 401) {
+        // 401未授权，清除token并跳转到登录页
+        localStorage.removeItem('token')
+        localStorage.removeItem('userInfo')
+        localStorage.removeItem('username')
+        localStorage.removeItem('avatarUrl')
+        localStorage.removeItem('nickname')
+        
+        window.location.href = '/login'
+        const errorMsg = '登录已过期，请重新登录'
+        ElMessage.error(errorMsg)
+        return Promise.reject(new Error(errorMsg))
+      }
+      
       const errorMsg = error.response.data?.message || 
                       error.response.data?.msg || 
                       `服务器错误(${error.response.status})`
@@ -107,5 +153,36 @@ request.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+// 定期检查token有效性，每5分钟检查一次
+setInterval(async () => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    try {
+      // 调用后端token验证接口
+      const response = await request({
+        url: '/auth/checkToken',
+        method: 'post',
+        data: { token }
+      })
+      
+      if (response.code !== 200 || response.data !== true) {
+        // token无效，清除token并跳转到登录页
+        console.error('token无效，清除token并跳转到登录页')
+        localStorage.removeItem('token')
+        localStorage.removeItem('userInfo')
+        localStorage.removeItem('username')
+        localStorage.removeItem('avatarUrl')
+        localStorage.removeItem('nickname')
+        
+        window.location.href = '/login'
+        ElMessage.error('登录已过期，请重新登录')
+      }
+    } catch (error) {
+      console.error('检查token有效性失败，可能是网络问题或服务器错误:', error)
+      // 不处理网络错误，避免误判
+    }
+  }
+}, 5 * 60 * 1000) // 每5分钟检查一次
 
 export default request
