@@ -269,7 +269,9 @@ const smoothResize = () => {
   }
   
   // 如果还需要继续调整，请求下一帧
-  if (Math.abs(currentLeftWidth - targetLeftWidth.value) > 1 || Math.abs(currentRightWidth - targetRightWidth.value) > 1) {
+  const leftDiff = Math.abs(parseInt(leftSidebarWidth.value) - targetLeftWidth.value)
+  const rightDiff = Math.abs(parseInt(rightSidebarWidth.value) - targetRightWidth.value)
+  if (leftDiff > 1 || rightDiff > 1) {
     resizeAnimationFrame = requestAnimationFrame(smoothResize)
   }
 }
@@ -900,6 +902,24 @@ const formatDate = (dateString) => {
 // 切换侧边栏展开/折叠
 const toggleSidebar = () => {
   sidebarCollapsed.value = !sidebarCollapsed.value
+  
+  // 当收起文件列表时，重置targetLeftWidth为50px
+  if (sidebarCollapsed.value) {
+    targetLeftWidth.value = 50
+    // 确保平滑调整到50px
+    if (resizeAnimationFrame) {
+      cancelAnimationFrame(resizeAnimationFrame)
+    }
+    resizeAnimationFrame = requestAnimationFrame(smoothResize)
+  } else {
+    // 当展开文件列表时，使用默认宽度300px
+    targetLeftWidth.value = 300
+    // 确保平滑调整到目标宽度
+    if (resizeAnimationFrame) {
+      cancelAnimationFrame(resizeAnimationFrame)
+    }
+    resizeAnimationFrame = requestAnimationFrame(smoothResize)
+  }
 }
 
 // 退出登录
