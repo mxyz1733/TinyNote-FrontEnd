@@ -840,8 +840,8 @@ const handleAIResponse = (response) => {
 }
 
 // 刷新笔记
-const refreshNotes = () => {
-  loadNotes()
+const refreshNotes = async () => {
+  await loadNotes()
   // 如果当前有选中的笔记，更新它
   if (currentNote.value) {
     const updatedNote = notes.value.find(note => note.id === currentNote.value.id)

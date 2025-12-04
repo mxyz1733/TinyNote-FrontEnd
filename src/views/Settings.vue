@@ -428,7 +428,7 @@ onMounted(async () => {
   // 然后加载用户信息，但不覆盖已有头像和昵称
   await loadUserInfo()
   // 加载笔记数量
-  loadNoteCount()
+  await loadNoteCount()
   loadNotificationSettings()
 })
 
