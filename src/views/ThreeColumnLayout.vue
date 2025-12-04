@@ -3,9 +3,6 @@
     <!-- 顶部导航栏 -->
     <el-header class="main-header">
       <div class="header-left">
-        <el-button type="text" @click="toggleSidebar" class="sidebar-toggle">
-          <el-icon><Menu /></el-icon>
-        </el-button>
         <h1 class="logo">TinyNote</h1>
       </div>
       <div class="header-center">
@@ -59,24 +56,29 @@
     <div class="main-container">
       <!-- 左侧文件列表 -->
       <el-aside :width="sidebarCollapsed ? '50px' : leftSidebarWidth" class="file-sidebar" :class="{ 'collapsed': sidebarCollapsed }">
-        <div v-if="!sidebarCollapsed" class="sidebar-content">
+        <div class="sidebar-content" :class="{ 'collapsed': sidebarCollapsed }">
           <div class="sidebar-header">
             <h3>我的笔记</h3>
-            <div class="sort-options">
-              <el-dropdown @command="handleSortChange" trigger="click">
-                <el-button size="small" type="text">
-                  {{ sortType === 'time' ? '时间' : '标题' }}
-                  <el-icon class="el-icon--right">
-                    <ArrowDown />
-                  </el-icon>
-                </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="time">按时间排序</el-dropdown-item>
-                    <el-dropdown-item command="title">按标题排序</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
+            <div class="sidebar-header-right">
+              <el-button type="text" @click="toggleSidebar" class="sidebar-toggle">
+                <el-icon><Menu /></el-icon>
+              </el-button>
+              <div class="sort-options">
+                <el-dropdown @command="handleSortChange" trigger="click">
+                  <el-button size="small" type="text">
+                    {{ sortType === 'time' ? '时间' : '标题' }}
+                    <el-icon class="el-icon--right">
+                      <ArrowDown />
+                    </el-icon>
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="time">按时间排序</el-dropdown-item>
+                      <el-dropdown-item command="title">按标题排序</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
             </div>
           </div>
           
@@ -106,7 +108,7 @@
           </div>
         </div>
         
-        <div v-else class="sidebar-collapse-trigger" @click="toggleSidebar">
+        <div class="sidebar-collapse-trigger" @click="toggleSidebar">
           <el-icon><Menu /></el-icon>
         </div>
       </el-aside>
@@ -1217,12 +1219,25 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  transition: width 0.3s ease;
+  overflow: hidden;
 }
 
 .sidebar-content {
   height: 100%;
   display: flex;
   flex-direction: column;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  transform: translateX(0);
+  opacity: 1;
+  overflow: hidden;
+}
+
+.sidebar-content.collapsed {
+  transform: translateX(-100%);
+  opacity: 0;
+  overflow: hidden;
 }
 
 .sidebar-header {
@@ -1231,6 +1246,12 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.sidebar-header-right {
+  display: flex;
+  align-items: center;
+  /* gap: 5px; */
 }
 
 .sidebar-header h3 {
@@ -1438,7 +1459,12 @@ onUnmounted(() => {
 
 
 .sidebar-collapse-trigger {
-  height: 100%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1446,14 +1472,22 @@ onUnmounted(() => {
   font-size: 20px;
   color: #606266;
   background: rgba(255, 255, 255, 0.9);
-  border-radius: 16px;
+  border-radius: 50%;
   transition: all 0.3s ease;
+  z-index: 10;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.file-sidebar.collapsed .sidebar-collapse-trigger {
+  opacity: 1;
+  visibility: visible;
 }
 
 .sidebar-collapse-trigger:hover {
   background: rgba(255, 255, 255, 1);
   color: var(--el-color-primary);
-  transform: scale(1.05);
+  transform: translate(-50%, -50%) scale(1.05);
 }
 
 /* 主容器样式 */
@@ -1542,12 +1576,21 @@ onUnmounted(() => {
   transition: all 0.3s ease;
   color: #409eff;
   border-radius: 50%;
-  padding: 8px;
+  padding: 6px;
+  z-index: 15;
+  opacity: 1;
+  visibility: visible;
+  margin: 0;
 }
 
 .sidebar-toggle:hover {
   transform: scale(1.1);
   background-color: rgba(64, 158, 255, 0.1);
+}
+
+.file-sidebar.collapsed .sidebar-toggle {
+  opacity: 0;
+  visibility: hidden;
 }
 
 /* 响应式设计 */
