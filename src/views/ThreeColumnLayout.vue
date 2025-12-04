@@ -194,16 +194,11 @@ import MarkdownEditor from '../components/MarkdownEditor.vue'
 import AIChatWindow from '../components/AIChatWindow.vue'
 import { noteAPI } from '../api/note.js'
 import { userAPI } from '../api/user.js'
-import request from '../api/axios.js'
+import { authAPI } from '../api/auth.js'
+import { utils } from '../utils/utils.js'
 
 const router = useRouter()
-// 工具：将后端可能返回的相对路径统一转换为绝对URL
-const apiOrigin = new URL(request.defaults.baseURL).origin
-const toAbsoluteUrl = (url) => {
-  if (!url) return ''
-  if (/^https?:\/\//i.test(url)) return url
-  return `${apiOrigin}${url.startsWith('/') ? url : '/' + url}`
-}
+
 const username = ref('')
 const avatarUrl = ref('')
 
@@ -220,7 +215,6 @@ const startWidth = ref(0)
 let resizeAnimationFrame = null
 
 // AI助手控制按钮相关变量
-const showAIButton = ref(true) // 仅在workspace界面显示
 const aiSidebarVisible = ref(true) // AI助手侧边栏显示状态
 const isDragging = ref(false) // 是否正在拖动
 const dragOffset = ref({ x: 0, y: 0 }) // 拖动偏移量
@@ -412,10 +406,7 @@ const mdInputRef = ref(null)
 
 // 返回页面时或窗口聚焦时，同步最新头像
 const refreshAvatarFromLocal = () => {
-  const saved = localStorage.getItem('avatarUrl') || ''
-  if (saved && saved !== avatarUrl.value) {
-    avatarUrl.value = saved
-  }
+  utils.refreshAvatarFromLocal(avatarUrl)
 }
 
 // 获取头像文本（用户名首字母）
@@ -875,28 +866,7 @@ const getPreview = (content) => {
 
 // 格式化日期
 const formatDate = (dateString) => {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diff = now - date
-  
-  // 小于1分钟
-  if (diff < 60000) {
-    return '刚刚'
-  }
-  // 小于1小时
-  if (diff < 3600000) {
-    return Math.floor(diff / 60000) + '分钟前'
-  }
-  // 小于1天
-  if (diff < 86400000) {
-    return Math.floor(diff / 3600000) + '小时前'
-  }
-  // 小于30天
-  if (diff < 2592000000) {
-    return Math.floor(diff / 86400000) + '天前'
-  }
-  // 大于30天
-  return date.toLocaleDateString()
+  return utils.formatDate(dateString)
 }
 
 // 切换侧边栏展开/折叠
@@ -924,13 +894,8 @@ const toggleSidebar = () => {
 
 // 退出登录
 const handleLogout = () => {
-  // 清除token和用户相关信息
-  localStorage.removeItem('token')
-  localStorage.removeItem('userInfo')
-  localStorage.removeItem('username')
-  localStorage.removeItem('avatarUrl')
-  localStorage.removeItem('nickname')
-  ElMessage.success('退出登录成功')
+  // 使用authAPI.logout方法
+  authAPI.logout()
   // 跳转到登录页
   router.push('/login')
 }
@@ -994,7 +959,7 @@ onMounted(async () => {
         
         // 更新头像URL
         if (userData.avatar && userData.avatar.trim()) {
-          const absolute = toAbsoluteUrl(userData.avatar)
+          const absolute = utils.toAbsoluteUrl(userData.avatar)
           avatarUrl.value = absolute
           localStorage.setItem('avatarUrl', absolute)
         }
@@ -1053,7 +1018,7 @@ onMounted(async () => {
     avatarUrl.value = savedAvatar
   } else if (userInfo && userInfo.avatar) {
     // 如果本地没有，才使用localStorage中userInfo的头像
-    avatarUrl.value = toAbsoluteUrl(userInfo.avatar)
+    avatarUrl.value = utils.toAbsoluteUrl(userInfo.avatar)
   }
   
   // 检查是否已登录

@@ -134,12 +134,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { noteAPI } from '../api/note.js'
 import { User, ArrowDown, Plus, Refresh, Setting, SwitchButton, Delete, Search, Clock, DocumentCopy } from '@element-plus/icons-vue'
 import { marked } from 'marked'
+import { authAPI } from '../api/auth.js'
+import { utils } from '../utils/utils.js'
 
 // 响应式数据
 const router = useRouter()
@@ -308,28 +310,7 @@ const getPreview = (content) => {
 
 // 格式化日期
 const formatDate = (dateString) => {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diff = now - date
-  
-  // 小于1分钟
-  if (diff < 60000) {
-    return '刚刚'
-  }
-  // 小于1小时
-  if (diff < 3600000) {
-    return Math.floor(diff / 60000) + '分钟前'
-  }
-  // 小于1天
-  if (diff < 86400000) {
-    return Math.floor(diff / 3600000) + '小时前'
-  }
-  // 小于30天
-  if (diff < 2592000000) {
-    return Math.floor(diff / 86400000) + '天前'
-  }
-  // 大于30天
-  return date.toLocaleDateString()
+  return utils.formatDate(dateString)
 }
 
 // 获取头像文本（用户名首字母）
@@ -339,11 +320,8 @@ const getAvatarText = computed(() => {
 })
 
 const handleLogout = () => {
-  // 清除token和用户信息，但保留记住我的用户名和密码
-  localStorage.removeItem('token')
-  localStorage.removeItem('userInfo')
-  localStorage.removeItem('avatarUrl')
-  ElMessage.success('退出登录成功')
+  // 使用authAPI.logout方法
+  authAPI.logout()
   // 跳转到登录页
   router.push('/login')
 }

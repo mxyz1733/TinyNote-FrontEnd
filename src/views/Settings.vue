@@ -185,6 +185,7 @@ import {
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { userAPI } from '../api/user.js'
+import { noteAPI } from '../api/note.js'
 import request from '../api/axios.js'
 
 const router = useRouter()
@@ -333,22 +334,12 @@ const handleAvatarUpload = async (uploadConfig) => {
       return
     }
     
-    // 直接创建FormData对象进行上传
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('userId', userId.value)
+    console.log('准备调用API上传头像:', userId.value, file.name)
     
-    console.log('准备发送FormData:', formData.get('userId'), formData.get('file').name)
-    
-    // 直接使用axios发送请求，绕过可能有问题的API封装
-    const response = await request({
-      url: `/user/uploadAvatar/${userId.value}`,
-      method: 'post',
-      data: formData,
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      },
-      timeout: 30000 // 增加超时时间
+    // 使用userAPI.uploadAvatar方法上传头像
+    const response = await userAPI.uploadAvatar({
+      userId: userId.value,
+      file: file
     })
     
     console.log('上传API返回结果:', response)
@@ -591,7 +582,7 @@ const loadNoteCount = async () => {
     if (userId.value && userId.value !== '未知') {
       try {
         // 使用正确的API端点获取笔记数量
-        const response = await userAPI.getNoteCount(userId.value)
+          const response = await noteAPI.getNoteCount(userId.value)
         if (response.code === 200) {
           // 从后端API响应中提取数量
           if (typeof response.data === 'number') {
@@ -610,21 +601,21 @@ const loadNoteCount = async () => {
           console.log('从后端API获取的笔记数量:', noteCount.value)
         }
       } catch (apiError) {
-        console.error('API调用失败:', apiError.message)
-        // 失败时尝试从笔记列表API获取数量
-        try {
-          const notesResponse = await userAPI.getUserNotes(userId.value)
-          if (notesResponse.code === 200 && notesResponse.data) {
-            if (notesResponse.data.records && Array.isArray(notesResponse.data.records)) {
-              noteCount.value = notesResponse.data.records.length
-            } else if (Array.isArray(notesResponse.data)) {
-              noteCount.value = notesResponse.data.length
+          console.error('API调用失败:', apiError.message)
+          // 失败时尝试从笔记列表API获取数量
+          try {
+            const notesResponse = await noteAPI.getUserNotes(userId.value)
+            if (notesResponse.code === 200 && notesResponse.data) {
+              if (notesResponse.data.records && Array.isArray(notesResponse.data.records)) {
+                noteCount.value = notesResponse.data.records.length
+              } else if (Array.isArray(notesResponse.data)) {
+                noteCount.value = notesResponse.data.length
+              }
             }
+          } catch (notesError) {
+            console.error('获取笔记列表失败:', notesError.message)
           }
-        } catch (notesError) {
-          console.error('获取笔记列表失败:', notesError.message)
         }
-      }
     } else {
       // 用户未登录时尝试从本地存储获取
       try {

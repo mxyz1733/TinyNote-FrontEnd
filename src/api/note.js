@@ -101,5 +101,17 @@ export const noteAPI = {
       method: 'get',
       params: { userId, keyword, pageNum, pageSize }
     })
+  },
+
+  /**
+   * 获取用户笔记数量
+   * @param {number} userId - 用户ID
+   */
+  getNoteCount(userId) {
+    return request({
+      url: '/note/count',
+      method: 'get',
+      params: { userId }
+    })
   }
 }

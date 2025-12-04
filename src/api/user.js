@@ -79,18 +79,6 @@ export const userAPI = {
   },
 
   /**
-   * 获取用户笔记数量
-   * @param {number} userId - 用户ID
-   */
-  getNoteCount(userId) {
-    return request({
-      url: '/note/count', // 移除多余的/api前缀，因为baseURL中已经包含
-      method: 'get',
-      params: { userId } // 使用query参数传递userId
-    })
-  },
-
-  /**
    * 上传用户头像
    * @param {Object} params - 上传参数
    * @param {number} params.userId - 用户ID

@@ -111,8 +111,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock, Right } from '@element-plus/icons-vue'
-import { userAPI } from '../api/user.js'
-import request from '../api/axios.js'
+import { authAPI } from '../api/auth.js'
 
 // 响应式数据
 const router = useRouter()
@@ -188,54 +187,22 @@ const handleLogin = async () => {
     await loginFormRef.value.validate()
     loading.value = true
     
-    // 调用后端API
-    const response = await userAPI.login({
+    // 调用authAPI.login方法
+    const response = await authAPI.login({
       username: loginForm.username,
       password: loginForm.password
-    })
+    }, rememberMe.value)
     
     if (response.code === 200) {
-      // 保存token和用户信息到localStorage
-      localStorage.setItem('token', response.data.token)
-      localStorage.setItem('userInfo', JSON.stringify(response.data.userInfo))
-      
-      // 保存用户名和密码
-      if (rememberMe.value) {
-        localStorage.setItem('rememberedUsername', loginForm.username)
-        localStorage.setItem('rememberedPassword', loginForm.password)
-      } else {
-        localStorage.removeItem('rememberedUsername')
-        localStorage.removeItem('rememberedPassword')
-      }
-      
-      // 保存用户昵称到localStorage
-      if (response.data.userInfo && response.data.userInfo.nickname) {
-        localStorage.setItem('nickname', response.data.userInfo.nickname)
-      } else {
-        // 如果没有昵称，使用用户名作为昵称
-        localStorage.setItem('nickname', loginForm.username)
-      }
-      
-      // 保存头像URL到localStorage（规范为绝对URL）
-      if (response.data.userInfo && response.data.userInfo.avatar) {
-        const apiOrigin = new URL(request.defaults.baseURL).origin
-        const avatar = response.data.userInfo.avatar
-        const absolute = /^https?:\/\//i.test(avatar) ? avatar : `${apiOrigin}${avatar.startsWith('/') ? avatar : '/' + avatar}`
-        localStorage.setItem('avatarUrl', absolute)
-      }
-      
       // 登录成功动画效果
       const loginCard = document.querySelector('.login-card')
       loginCard.classList.add('login-success')
-      
-      ElMessage.success('登录成功')
       
       // 延迟跳转到工作区页面
       setTimeout(() => {
         router.push('/workspace')
       }, 800)
     } else {
-      ElMessage.error(response.message || '登录失败')
       // 登录失败时密码框抖动
       shake.password = true
       setTimeout(() => { shake.password = false }, 600)
@@ -244,7 +211,9 @@ const handleLogin = async () => {
     
   } catch (error) {
     console.error('登录错误:', error)
-    ElMessage.error('登录失败，请检查网络连接或稍后重试')
+    // 登录失败时密码框抖动
+    shake.password = true
+    setTimeout(() => { shake.password = false }, 600)
     loading.value = false
   }
 }
