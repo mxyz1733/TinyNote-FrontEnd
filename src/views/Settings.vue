@@ -54,9 +54,6 @@
               <el-descriptions-item label="邮箱" class="info-item">
                 <span class="info-value">{{ email || '未设置' }}</span>
               </el-descriptions-item>
-              <el-descriptions-item label="昵称" class="info-item">
-                <span class="info-value">{{ nickname || '未设置' }}</span>
-              </el-descriptions-item>
               <el-descriptions-item label="注册时间" class="info-item">
                 <span class="info-value">{{ formatDate(createTime) || '未知' }}</span>
               </el-descriptions-item>

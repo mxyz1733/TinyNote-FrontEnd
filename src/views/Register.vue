@@ -41,7 +41,7 @@
             show-password
           />
         </el-form-item>
-        
+
         <el-form-item prop="confirmPassword">
           <el-input
             v-model="registerForm.confirmPassword"
@@ -51,11 +51,11 @@
             show-password
           />
         </el-form-item>
-        
+
         <el-form-item>
           <el-checkbox v-model="agreed">我已阅读并同意<a href="#" @click.prevent>用户协议</a>和<a href="#" @click.prevent>隐私政策</a></el-checkbox>
         </el-form-item>
-        
+
         <el-form-item>
           <el-button 
             type="primary" 
@@ -67,7 +67,7 @@
             注册
           </el-button>
         </el-form-item>
-        
+
         <el-form-item class="login-redirect">
           <span>已有账号？</span>
           <el-link type="primary" :underline="false" @click="goToLogin">去登录</el-link>
