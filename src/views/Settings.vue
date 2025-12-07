@@ -81,7 +81,7 @@
             </el-form>
           </div>
         </el-tab-pane>
-        
+
         <!-- 安全设置 -->
         <el-tab-pane label="安全" name="security">
           <template #label>
@@ -112,7 +112,7 @@
             </el-form>
           </div>
         </el-tab-pane>
-        
+
         <!-- 通知设置 -->
         <el-tab-pane label="通知" name="notification">
           <template #label>
@@ -137,7 +137,7 @@
             </el-form>
           </div>
         </el-tab-pane>
-        
+
         <!-- 关于 -->
         <el-tab-pane label="关于" name="about">
           <template #label>

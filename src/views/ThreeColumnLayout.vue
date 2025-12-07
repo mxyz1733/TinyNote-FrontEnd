@@ -104,7 +104,6 @@
           
           <div v-else class="empty-notes">
             <el-empty description="暂无笔记" :image-size="60" />
-            <el-button size="small" type="primary" @click="createNote">创建第一篇笔记</el-button>
           </div>
         </div>
         
@@ -153,7 +152,6 @@
         
         <div v-else class="empty-editor">
           <el-empty description="选择或创建一个笔记开始编辑" :image-size="120" />
-          <el-button type="primary" @click="createNote" class="create-note-btn">创建新笔记</el-button>
         </div>
       </el-main>
       

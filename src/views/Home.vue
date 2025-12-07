@@ -91,7 +91,6 @@
       <!-- 空状态 -->
       <div class="empty-state" v-else>
         <el-empty description="暂无笔记" :image-size="100">
-          <el-button type="primary" @click="createNote">创建第一篇笔记</el-button>
         </el-empty>
       </div>
       
