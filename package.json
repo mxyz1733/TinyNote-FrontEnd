@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
+    "axios": "^1.13.2",
     "element-plus": "^2.11.5",
     "marked": "^16.4.1",
     "mavon-editor": "^3.0.2",

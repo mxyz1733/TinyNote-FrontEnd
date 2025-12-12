@@ -16,18 +16,25 @@ const routes = [
   {
     path: '/login',
     name: 'Login',
-    component: Login
+    component: Login,
+    meta: {
+      title: '登录 - TinyNote'
+    }
   },
   {
     path: '/register',
     name: 'Register',
-    component: Register
+    component: Register,
+    meta: {
+      title: '注册 - TinyNote'
+    }
   },
   {
     path: '/home',
     name: 'Home',
     component: Home,
     meta: {
+      title: '首页 - TinyNote',
       requiresAuth: true
     }
   },
@@ -36,6 +43,7 @@ const routes = [
     name: 'ThreeColumnLayout',
     component: ThreeColumnLayout,
     meta: {
+      title: '工作区 - TinyNote',
       requiresAuth: true
     }
   },
@@ -44,6 +52,7 @@ const routes = [
     name: 'NoteEdit',
     component: NoteEdit,
     meta: {
+      title: '编辑笔记 - TinyNote',
       requiresAuth: true
     }
   },
@@ -52,6 +61,7 @@ const routes = [
     name: 'Settings',
     component: Settings,
     meta: {
+      title: '设置 - TinyNote',
       requiresAuth: true
     }
   }
@@ -62,8 +72,13 @@ const router = createRouter({
   routes
 })
 
-// 路由守卫，检查是否需要登录
+// 路由守卫，检查是否需要登录并设置页面标题
 router.beforeEach((to, from, next) => {
+  // 设置页面标题
+  if (to.meta.title) {
+    document.title = to.meta.title
+  }
+  
   const isAuthenticated = localStorage.getItem('token')
   
   if (to.matched.some(record => record.meta.requiresAuth) && !isAuthenticated) {
